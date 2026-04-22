@@ -56,6 +56,48 @@
     flex-shrink: 0;
   }
 
+  /* ── Main layout ── */
+  #layout { display: flex; height: calc(100vh - 48px); overflow: hidden; }
+
+  /* ── Columns ── */
+  #col-history  { width: 380px; min-width: 300px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid #282828; }
+  #col-middle   { width: 420px; min-width: 360px; flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; border-right: 1px solid #282828; }
+  #col-live-grid{ flex: 1; min-width: 400px; display: flex; flex-direction: column; background: #040404; overflow: hidden; }
+
+  /* ── Left panel (history) ── */
+  #left { width: 100%; display: flex; flex-direction: column; overflow: hidden; height: 100%; }
+
+  /* ── Right panel (info/live views) ── */
+  #right { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Matrix ── */
+  #matrix-hdr { padding: 8px 14px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px; background: #111; border-bottom: 1px solid #282828; flex-shrink: 0; }
+  #matrix-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px; overflow-y: auto; flex: 1; }
+  .matrix-card {
+    background: #111; border: 1px solid #282828; border-radius: 4px;
+    padding: 14px; display: flex; flex-direction: column; gap: 6px;
+    transition: border-color 0.2s, background 0.2s; cursor: pointer;
+  }
+  .matrix-card:hover { border-color: #444; }
+  .matrix-card.selected { border-color: #f0b429 !important; background: #181400; }
+  .card-hdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+  .card-sym { font-size: 15px; font-weight: bold; color: #f0b429; }
+  .card-tf  { font-size: 11px; color: #555; }
+  .card-price { font-size: 20px; font-family: monospace; font-weight: bold; color: #e0e0e0; letter-spacing: -0.5px; }
+  .card-sig { font-size: 12px; font-weight: bold; padding: 2px 8px; border-radius: 2px; align-self: flex-start; margin-top: 2px; }
+  .card-sig.ENTER   { background: #0d3320; color: #22c55e; border: 1px solid #22c55e; }
+  .card-sig.CAUTION { background: #3a2900; color: #f0b429; border: 1px solid #f0b429; }
+  .card-sig.NO_TRADE,.card-sig.WAITING { background: #1a1a1a; color: #555; border: 1px solid #333; }
+  .card-factors { font-size: 11px; color: #555; }
+  .card-dir { font-size: 11px; }
+
+  @keyframes flashRed {
+    0%   { background: #111; border-color: #282828; }
+    50%  { background: #2d0808; border-color: #ef4444; }
+    100% { background: #111; border-color: #282828; }
+  }
+  .flash-red { animation: flashRed 0.7s ease-in-out infinite; }
+
   /* ── NY Clock / Countdown ── */
   #clock-panel {
     padding: 12px; border-bottom: 1px solid #282828; flex-shrink: 0;
@@ -227,8 +269,9 @@
 <!-- ── MAIN LAYOUT ── -->
 <div id="layout">
 
-  <!-- ────── LEFT PANEL ────── -->
-  <div id="left">
+  <!-- ────── COL 1: HISTORY ────── -->
+  <div id="col-history">
+    <div id="left">
 
     <!-- NY/IST Clocks + Countdown -->
     <div class="section-hdr">SESSION STATUS (DYNAMIC DST)</div>
@@ -317,8 +360,12 @@
     <div class="disclaimer">⚠ Not financial advice. For research only.</div>
   </div>
 
-  <!-- ────── RIGHT PANEL ────── -->
-  <div id="right">
+    </div><!-- /#left -->
+  </div><!-- /#col-history -->
+
+  <!-- ────── COL 2: MIDDLE (Signals / Info) ────── -->
+  <div id="col-middle">
+    <div id="right">
     <div class="section-hdr" id="right-hdr">LIVE MODE — XAUUSD</div>
     <div id="right-inner">
 
@@ -415,7 +462,61 @@
     </div>
   </div>
 
-</div>
+    </div><!-- /#right -->
+  </div><!-- /#col-middle -->
+
+  <!-- ────── COL 3: LIVE MATRIX ────── -->
+  <div id="col-live-grid">
+    <div id="matrix-hdr">⚡ LIVE SIGNALS MATRIX — ES / MES / NQ</div>
+    <div id="matrix-grid">
+      <!-- 6 cards: ES×1m, ES×5m, MES×1m, MES×5m, NQ×1m, NQ×5m -->
+      <div class="matrix-card selected" id="card-ES-1m"  onclick="selectCard('ES','1m')">
+        <div class="card-hdr"><span class="card-sym">ES</span><span class="card-tf">1m</span></div>
+        <div class="card-price" id="price-ES-1m">--</div>
+        <span class="card-sig WAITING" id="sig-ES-1m">WAITING</span>
+        <div class="card-factors" id="factors-ES-1m">F: 0/4</div>
+        <div class="card-dir" id="dir-ES-1m"></div>
+      </div>
+      <div class="matrix-card" id="card-ES-5m"  onclick="selectCard('ES','5m')">
+        <div class="card-hdr"><span class="card-sym">ES</span><span class="card-tf">5m</span></div>
+        <div class="card-price" id="price-ES-5m">--</div>
+        <span class="card-sig WAITING" id="sig-ES-5m">WAITING</span>
+        <div class="card-factors" id="factors-ES-5m">F: 0/4</div>
+        <div class="card-dir" id="dir-ES-5m"></div>
+      </div>
+      <div class="matrix-card" id="card-MES-1m" onclick="selectCard('MES','1m')">
+        <div class="card-hdr"><span class="card-sym">MES</span><span class="card-tf">1m</span></div>
+        <div class="card-price" id="price-MES-1m">--</div>
+        <span class="card-sig WAITING" id="sig-MES-1m">WAITING</span>
+        <div class="card-factors" id="factors-MES-1m">F: 0/4</div>
+        <div class="card-dir" id="dir-MES-1m"></div>
+      </div>
+      <div class="matrix-card" id="card-MES-5m" onclick="selectCard('MES','5m')">
+        <div class="card-hdr"><span class="card-sym">MES</span><span class="card-tf">5m</span></div>
+        <div class="card-price" id="price-MES-5m">--</div>
+        <span class="card-sig WAITING" id="sig-MES-5m">WAITING</span>
+        <div class="card-factors" id="factors-MES-5m">F: 0/4</div>
+        <div class="card-dir" id="dir-MES-5m"></div>
+      </div>
+      <div class="matrix-card" id="card-NQ-1m"  onclick="selectCard('NQ','1m')">
+        <div class="card-hdr"><span class="card-sym">NQ</span><span class="card-tf">1m</span></div>
+        <div class="card-price" id="price-NQ-1m">--</div>
+        <span class="card-sig WAITING" id="sig-NQ-1m">WAITING</span>
+        <div class="card-factors" id="factors-NQ-1m">F: 0/4</div>
+        <div class="card-dir" id="dir-NQ-1m"></div>
+      </div>
+      <div class="matrix-card" id="card-NQ-5m"  onclick="selectCard('NQ','5m')">
+        <div class="card-hdr"><span class="card-sym">NQ</span><span class="card-tf">5m</span></div>
+        <div class="card-price" id="price-NQ-5m">--</div>
+        <span class="card-sig WAITING" id="sig-NQ-5m">WAITING</span>
+        <div class="card-factors" id="factors-NQ-5m">F: 0/4</div>
+        <div class="card-dir" id="dir-NQ-5m"></div>
+      </div>
+    </div>
+    <div style="padding:8px 14px;font-size:10px;color:#333;border-top:1px solid #1a1a1a;flex-shrink:0;">⚠ Not financial advice. Research only. Data ~15m delayed.</div>
+  </div><!-- /#col-live-grid -->
+
+</div><!-- /#layout -->
 
 <script>
 const API = 'http://localhost:8000';
@@ -433,7 +534,53 @@ function setSymbol(sym) {
   ['ES','MES','NQ'].forEach(s =>
     document.getElementById('sym-'+s).classList.toggle('active', s === sym));
   updateRightHeader();
-  fetchAndShowSignal(currentSymbol, currentTF);
+  
+// ── Matrix card selection ──────────────────────────────────────────
+function selectCard(sym, tf) {
+  currentSymbol = sym;
+  currentTF     = tf;
+  // Update topbar buttons
+  ['ES','MES','NQ'].forEach(s => document.getElementById('sym-'+s).classList.toggle('active', s===sym));
+  ['1m','5m'].forEach(t => document.getElementById('tf-'+t).classList.toggle('active', t===tf));
+  // Highlight selected card
+  document.querySelectorAll('.matrix-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById('card-'+sym+'-'+tf);
+  if (card) card.classList.add('selected');
+  updateRightHeader();
+  fetchAndShowSignal(sym, tf);
+}
+
+// ── Handle matrix_update heartbeat ────────────────────────────────
+function handleMatrixUpdate(matrix) {
+  for (const sym in matrix) {
+    for (const tf in matrix[sym]) {
+      const d = matrix[sym][tf];
+      const key = sym + '-' + tf;
+      const el_price   = document.getElementById('price-'   + key);
+      const el_sig     = document.getElementById('sig-'     + key);
+      const el_factors = document.getElementById('factors-' + key);
+      const el_dir     = document.getElementById('dir-'     + key);
+      const card       = document.getElementById('card-'    + key);
+      if (el_price && d.price) el_price.textContent = parseFloat(d.price).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+      if (el_sig) {
+        const ss = d.signal_strength || 'WAITING';
+        el_sig.textContent = ss;
+        el_sig.className = 'card-sig ' + ss;
+        if (ss === 'ENTER' && card) {
+          card.classList.add('flash-red');
+          setTimeout(() => card.classList.remove('flash-red'), 8000);
+        }
+      }
+      if (el_factors) el_factors.textContent = 'F: ' + (d.factors_hit||0) + '/4';
+      if (el_dir && d.direction && d.direction !== 'none') {
+        el_dir.textContent = d.direction === 'long' ? '▲ LONG' : '▼ SHORT';
+        el_dir.style.color = d.direction === 'long' ? '#22c55e' : '#ef4444';
+      } else if (el_dir) { el_dir.textContent = ''; }
+    }
+  }
+}
+
+fetchAndShowSignal(currentSymbol, currentTF);
 }
 
 function setMode(m) {
@@ -558,8 +705,9 @@ function connectWS() {
   ws.onmessage = (e) => {
     try {
       const msg = JSON.parse(e.data);
-      if (msg.type === 'signal') handleSignal(msg.data);
-      if (msg.type === 'outcome') handleOutcome(msg.data);
+      if (msg.type === 'signal')        handleSignal(msg.data);
+      if (msg.type === 'outcome')       handleOutcome(msg.data);
+      if (msg.type === 'matrix_update') handleMatrixUpdate(msg.data);
     } catch(_) {}
   };
 

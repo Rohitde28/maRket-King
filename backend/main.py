@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 # ── Config ────────────────────────────────────────────────────────
 SYMBOLS            = list(SUPPORTED_SYMBOLS.keys())   # [ES, MES, NQ]
 ACTIVE_TIMEFRAMES  = ["1m", "5m"]
-INTERVAL_1M        = 30    # seconds — fast for 1m chart (live markets)
+INTERVAL_1M        = 15    # seconds — aggressive polling for 1m live signals
 INTERVAL_OTHER     = 60    # seconds — for 5m
 ML_BACKEND         = os.getenv("ML_BACKEND", "RULE_BASED").upper()
 
@@ -149,7 +149,9 @@ async def run_analysis_loop():
                         except Exception as e:
                             logger.error(f"[DB] log_signal: {e}")
 
-                        open_signals.append(dict(sd))
+                        open_signal_entry = dict(sd)
+                        open_signal_entry["_df_cache"] = df  # for failure diagnosis
+                        open_signals.append(open_signal_entry)
 
                         if connected_clients:
                             await _broadcast({"type": "signal", "data": sd})
@@ -163,12 +165,12 @@ async def run_analysis_loop():
 
 # ── Outcome monitor ───────────────────────────────────────────────
 async def run_outcome_monitor():
-    """Check every 30 s if open signals hit SL/TP1/TP2."""
+    """Check every 15s if open signals hit SL/TP1/TP2."""
+    from strategy.orr_analyzer import diagnose_trade_failure
     await asyncio.sleep(10)
     while True:
         if open_signals:
             loop = asyncio.get_event_loop()
-            # Fetch prices for all symbols at once
             prices = {}
             for sym in SYMBOLS:
                 p = await loop.run_in_executor(None, get_current_price, sym)
@@ -182,16 +184,18 @@ async def run_outcome_monitor():
                     still_open.append(sig); continue
 
                 direction = sig.get("direction")
-                entry, sl, tp1, tp2 = (sig.get("entry_price"), sig.get("stop_loss"),
-                                       sig.get("tp1"), sig.get("tp2"))
+                entry = sig.get("entry_price")
+                sl    = sig.get("stop_loss")
+                tp1   = sig.get("tp1")
+                tp2   = sig.get("tp2")
 
                 outcome = None
                 if direction == "long":
-                    if price <= sl:   outcome = "SL"
+                    if price <= sl:    outcome = "SL"
                     elif price >= tp2: outcome = "TP2"
                     elif price >= tp1: outcome = "TP1"
                 elif direction == "short":
-                    if price >= sl:   outcome = "SL"
+                    if price >= sl:    outcome = "SL"
                     elif price <= tp2: outcome = "TP2"
                     elif price <= tp1: outcome = "TP1"
 
@@ -199,15 +203,33 @@ async def run_outcome_monitor():
                     sig["outcome"]      = outcome
                     sig["exit_price"]   = price
                     sig["outcome_time"] = datetime.now(timezone.utc).isoformat()
-                    logger.info(f"[Monitor] {sym} {outcome} @ {price:.2f}")
+
+                    # Failure diagnosis on SL
+                    exit_reason = None
+                    if outcome == "SL":
+                        try:
+                            tf = sig.get("timeframe", "1m")
+                            df_cache = sig.get("_df_cache")
+                            if df_cache is not None:
+                                exit_reason = diagnose_trade_failure(df_cache, entry, sl, direction, tf)
+                            sig["exit_reason"] = exit_reason
+                        except Exception:
+                            pass
+
+                    logger.info(f"[Monitor] {sym} {outcome} @ {price:.2f}"
+                                + (f" | {exit_reason}" if exit_reason else ""))
+
                     if sig.get("_db_id"):
                         try:
                             from trade_log import _get_conn
                             with _get_conn() as conn:
-                                conn.execute("UPDATE signals SET outcome=? WHERE id=?",
-                                             (outcome, sig["_db_id"]))
+                                conn.execute(
+                                    "UPDATE signals SET outcome=?, exit_price=?, exit_reason=? WHERE id=?",
+                                    (outcome, price, exit_reason, sig["_db_id"])
+                                )
                         except Exception as e:
                             logger.error(f"[Monitor] DB: {e}")
+
                     await _broadcast({"type": "outcome", "data": sig})
                 else:
                     still_open.append(sig)
@@ -215,7 +237,38 @@ async def run_outcome_monitor():
             open_signals.clear()
             open_signals.extend(still_open)
 
-        await asyncio.sleep(30)
+        await asyncio.sleep(15)  # aligned with 1m polling interval
+
+
+# ── Matrix heartbeat ──────────────────────────────────────────────
+async def run_matrix_heartbeat():
+    """Broadcast full 6-combo status to matrix grid every 15 s."""
+    loop = asyncio.get_event_loop()
+    await asyncio.sleep(5)
+    while True:
+        prices = {}
+        for sym in SYMBOLS:
+            p = await loop.run_in_executor(None, get_current_price, sym)
+            prices[sym] = p
+
+        matrix = {}
+        for sym in SYMBOLS:
+            matrix[sym] = {}
+            for tf in ACTIVE_TIMEFRAMES:
+                sig = latest_signals.get(sym, {}).get(tf, {})
+                matrix[sym][tf] = {
+                    "symbol":          sym,
+                    "timeframe":       tf,
+                    "price":           prices.get(sym),
+                    "signal_strength": sig.get("signal_strength", "WAITING"),
+                    "direction":       sig.get("direction", "none"),
+                    "factors_hit":     sig.get("factors_hit", 0),
+                    "entry_price":     sig.get("entry_price"),
+                    "stop_loss":       sig.get("stop_loss"),
+                }
+
+        await _broadcast({"type": "matrix_update", "data": matrix})
+        await asyncio.sleep(15)
 
 
 # ── Startup ───────────────────────────────────────────────────────
@@ -224,8 +277,10 @@ async def startup():
     init_db()
     logger.info(f"✅ DB init | Symbols: {SYMBOLS} | TFs: {ACTIVE_TIMEFRAMES}")
     logger.info(f"✅ ML backend: {ML_BACKEND} (AI only if OLLAMA)")
+    logger.info(f"✅ Polling: 1m every {INTERVAL_1M}s, 5m every {INTERVAL_OTHER}s")
     asyncio.create_task(run_analysis_loop())
     asyncio.create_task(run_outcome_monitor())
+    asyncio.create_task(run_matrix_heartbeat())
 
 
 # ── WebSocket ─────────────────────────────────────────────────────
