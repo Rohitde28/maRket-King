@@ -47,8 +47,10 @@ Start the FastAPI backend server:
 
 ```bash
 cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000
+python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
+
+> **Note**: The `--reload` flag automatically restarts the server whenever you save changes to your code!
 
 The server will:
 1. Initialize the SQLite database.
