@@ -179,6 +179,8 @@
             <option value="ENTER" selected>Perfect Setup (4/4 Rules)</option>
             <option value="CAUTION">Loose Setup (3/4+ Rules)</option>
           </select></label>
+          &nbsp;&nbsp;
+          <label>Fee/Trade: $<input type="number" id="bt-brokerage" value="5" step="0.5" style="width: 60px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; padding: 2px 5px;"></label>
           <br><br>
           <button id="run-backtest-btn" onclick="runBacktest()">▶ RUN BACKTEST</button>
         <div class="info-block" style="margin-top:20px; border-top: 1px solid #222; padding-top:20px;">
@@ -194,7 +196,8 @@
                   <th>Entry Zone</th>
                   <th>SL / TP</th>
                   <th>Outcome</th>
-                  <th>Profit</th>
+                  <th>Fee</th>
+                  <th>Profit (Net)</th>
                 </tr>
               </thead>
               <tbody id="bt-table-body"></tbody>

@@ -430,6 +430,7 @@ async def run_backtest_endpoint(
     min_signal: str = "ENTER",
     skip_timing: bool = False,
     symbol: str = "ES",
+    brokerage: float = 5.0,
 ):
     import sys
     from pathlib import Path
@@ -447,19 +448,23 @@ async def run_backtest_endpoint(
 
         # Make end date inclusive if provided
         fetch_end = end
-        if start and end and start == end:
+        if start and end:
             try:
                 from datetime import datetime, timedelta
-                d = datetime.strptime(end, "%Y-%m-%d")
-                fetch_end = (d + timedelta(days=1)).strftime("%Y-%m-%d")
-            except:
+                d1 = datetime.strptime(start, "%Y-%m-%d")
+                d2 = datetime.strptime(end, "%Y-%m-%d")
+                if d1 > d2:
+                    start, end = end, start # Swap start and end
+                    d1, d2 = d2, d1
+                fetch_end = (d2 + timedelta(days=1)).strftime("%Y-%m-%d")
+            except Exception as e:
                 pass
         elif end:
             try:
                 from datetime import datetime, timedelta
                 d = datetime.strptime(end, "%Y-%m-%d")
                 fetch_end = (d + timedelta(days=1)).strftime("%Y-%m-%d")
-            except:
+            except Exception as e:
                 pass
 
         try:
@@ -473,7 +478,7 @@ async def run_backtest_endpoint(
 
             from strategy.orr_analyzer import diagnose_trade_failure
             import pytz
-            BROKERAGE = 10.0
+            BROKERAGE = float(brokerage)
             trades = []
             active_until = 0
 

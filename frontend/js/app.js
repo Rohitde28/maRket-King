@@ -363,12 +363,13 @@ async function runBacktest() {
   const min = document.getElementById('bt-minsig').value;
   const date= document.getElementById('bt-date').value;
   const end = document.getElementById('bt-end-date').value;
+  const brokerage = document.getElementById('bt-brokerage') ? document.getElementById('bt-brokerage').value : 5;
 
   btn.disabled = true;
   btn.textContent = '⏳ Running...';
   out.textContent = `Running backtest: ${tf} | range: ${date || 'recent'} to ${end || 'now'} | strictness: ${min}\nThis may take 10-30 seconds...\n`;
 
-  let url = `${API}/api/backtest?timeframe=${tf}&min_signal=${min}&symbol=${sym}`;
+  let url = `${API}/api/backtest?timeframe=${tf}&min_signal=${min}&symbol=${sym}&brokerage=${brokerage}`;
   if (date) url += `&start=${date}`;
   if (end)  url += `&end=${end}`;
   if (!date && !end) url += `&bars=400`;
@@ -392,7 +393,7 @@ async function runBacktest() {
       <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; background:#111; padding:15px; border-radius:4px; border:1px solid #222">
         <div><small style="color:#666">Signals</small><div style="font-size:18px">${s.total_trades}</div></div>
         <div><small style="color:#666">Win Rate</small><div style="font-size:18px; color:${s.win_rate > 0.5 ? '#27ae60':'#e74c3c'}">${(s.win_rate * 100).toFixed(1)}%</div></div>
-        <div><small style="color:#666">Brokerage</small><div style="font-size:18px; color:#e67e22">-$${s.total_brokerage}</div></div>
+        <div><small style="color:#666">Brokerage</small><div style="font-size:18px; color:#e67e22">-$${s.total_brokerage !== undefined ? s.total_brokerage : 0}</div></div>
         <div><small style="color:#666">P&L (Net)</small><div style="font-size:18px; color:${s.total_pnl_usd >= 0 ? '#27ae60':'#e74c3c'}">${s.total_pnl_usd >= 0 ? '$'+s.total_pnl_usd.toLocaleString() : '-$'+Math.abs(s.total_pnl_usd).toLocaleString()}</div></div>
         <div><small style="color:#666">TP1 / TP2</small><div style="font-size:18px">${s.tp1_hits} / ${s.tp2_hits}</div></div>
       </div>
@@ -419,14 +420,15 @@ async function runBacktest() {
         <td style="color:#00ff88">${t.entry_range ? (t.entry_range.low + ' - ' + t.entry_range.high) : t.entry}</td>
         <td><small style="color:#666">${t.sl} / ${t.tp1}</small></td>
         <td><span class="bt-tag ${isWin ? 'tag-win' : (isLoss ? 'tag-loss' : '')}">${t.outcome}</span></td>
-        <td style="color:${t.pnl_usd >= 0 ? '#27ae60':'#e74c3c'}">${t.pnl_usd >= 0 ? '+$'+t.pnl_usd : '-$'+Math.abs(t.pnl_usd)} <small style="color:#444">(-$${t.brokerage} fee)</small></td>
+        <td style="color:#e67e22">-$${t.brokerage !== undefined ? t.brokerage : 0}</td>
+        <td style="color:${t.pnl_usd >= 0 ? '#27ae60':'#e74c3c'}">${t.pnl_usd >= 0 ? '+$'+t.pnl_usd : '-$'+Math.abs(t.pnl_usd)}</td>
       `;
       tbody.appendChild(tr);
 
       // Add diagnosis sub-row if failed
       if (t.diagnosis) {
         const diagRow = document.createElement('tr');
-        diagRow.innerHTML = `<td colspan="6" style="background:#0a0a0a; color:#888; border-top:none; font-size:11px; padding:4px 15px;">
+        diagRow.innerHTML = `<td colspan="8" style="background:#0a0a0a; color:#888; border-top:none; font-size:11px; padding:4px 15px;">
           <span style="color:#e67e22">DIAGNOSTIC:</span> ${t.diagnosis}
         </td>`;
         tbody.appendChild(diagRow);
@@ -434,7 +436,7 @@ async function runBacktest() {
     });
 
     if (!data.trades || data.trades.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:#444">No signals fired for this period. Try a looser setup or larger timeframe.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:#444">No signals fired for this period. Try a looser setup or larger timeframe.</td></tr>';
     }
 
     out.style.display = 'none'; // hide old pre
