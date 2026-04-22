@@ -1,0 +1,126 @@
+﻿Opening Range Reversal Strategy
+Futures Day Trading System - Technical Specification
+Document prepared for Developer Reference
+
+1. Strategy Overview
+This document describes an Opening Range Reversal (ORR) strategy applied to US equity index futures. The strategy identifies high-probability reversal points during the first 30-45 minutes after market open using a combination of timing windows, support/resistance zones, trend structure, and momentum signals.
+The core principle: when the market makes a sharp, aggressive flush in the opening window and reaches a key level at a defined timing interval, it is highly likely to reverse. The trader enters in the direction of the reversal after trend-break confirmation, targeting 2-3x the initial risk.
+
+2. Markets & Instruments
+
+ParameterDetailsPrimary MarketsES (S&P 500 Futures) and NQ (NASDAQ Futures)Market SelectionChoose the one showing better volatility and clearer structure on the dayTimeframes Used1-minute chart (primary entry), 5-minute and 15-minute (context/bias)Trading PlatformNinjaTrader (custom position-sizing tool built in)Additional AssetsGold Futures (GC) - traded using same rules later in session
+
+3. Key Timing Windows
+The strategy does NOT enter randomly. It waits for specific time windows after the market opens, where reversals are statistically more common.
+
+WindowTime (Trader's Local)US Eastern EquivalentNotesMarket Open7:30 AM9:30 AM ETWatch price action, no entry yetWindow 17:45 AM9:45 AM ET15 min after open - first reversal watchWindow 28:00 AM10:00 AM ET30 min after open - strongest reversal windowExtended8:30-10:00 AM10:30 AM-12:00 PM ETLater setups using same rules (e.g. Gold)
+The 8:00 AM window (30 min after open) is considered the most reliable. The trader specifically watches for reversals at these exact times rather than entering at arbitrary moments.
+
+4. Pre-Market Preparation
+Before the market opens, the trader performs the following steps on a 15-minute or daily chart:
+• Mark key overnight support and resistance levels where price may reverse
+• Identify the previous day's high, low, and close - especially major swing points
+• Note significant price gaps between yesterday's close and today's open
+• Establish a directional bias based on trend structure (uptrend, downtrend, or range)
+• Identify fair value gaps (FVGs) - areas of market imbalance from large, fast moves
+• Mark the key timing windows (7:45 and 8:00) on the chart
+
+Fair Value Gaps are highlighted using a custom NinjaTrader indicator. Multiple FVG signals stacking = stronger reversal conviction.
+
+5. Entry Criteria (The 4-Factor Checklist)
+All four factors must be present before entering a trade. Missing any one factor is reason to skip the trade.
+Factor 1 - Strong Flush Into a Key Zone
+The market must make an aggressive, directional move into a pre-marked support or resistance level. The move must be:
+• Fast and large - not slow or choppy
+• Reaching a pre-identified key support (for longs) or resistance (for shorts)
+• Ideally accompanied by Fair Value Gap indicators firing
+If the market is drifting or grinding without clear momentum, skip. Good reversal trades require volatile, fast-moving markets.
+Factor 2 - Reversal Timing Alignment
+The flush into the key zone must coincide with one of the defined timing windows (7:45 or 8:00 local time). The trader is highly alert during these periods and treats them as catalysts.
+Factor 3 - Trend Structure Break
+Since this is a reversal strategy, the current trend must show signs of failing. Evidence of trend break includes:
+• Price breaking through a drawn trend line
+• The sequence of Lower Highs / Lower Lows (downtrend) ending - market begins printing a Higher Low
+• A 'head and shoulders' type pattern forming: a push to a new extreme, a pullback, and a failed second attempt at the extreme
+The trader does NOT enter on the first sign of reversal. They wait for structural confirmation that the previous trend has broken before committing.
+Factor 4 - Momentum Confirmation Candle
+A large, decisive candle must break above the prior swing high (for longs) or below the prior swing low (for shorts). The entry is placed as a stop-market order triggered on the break of that level - NOT on a limit order trying to catch a pullback.
+Entering on the break of the confirmation candle ensures momentum is already moving in the trade direction, even if the entry price is slightly worse than the absolute extreme.
+
+6. Entry Execution
+Entry is triggered using a stop-market order placed just above the prior swing high (long) or below the prior swing low (short). The trader uses a custom NinjaTrader tool that automatically calculates contract size based on:
+• Pre-set dollar risk per trade (e.g. $500, $700, $1,400)
+• Entry price and stop loss distance
+• Number of contracts is calculated to match the target dollar risk
+
+Risk ParameterTypical RangeSmall account / learning< $50 per tradeStandard size$500 - $1,000 per tradeHigh-conviction trade$1,200 - $1,500+ per trade
+7. Stop Loss Placement
+Stop loss is placed below the prior swing low (for longs) or above the prior swing high (for shorts) - specifically below the extreme of the flush that formed the reversal pattern.
+Rationale: if price returns to that extreme and breaks it, the reversal thesis is invalidated and the original downtrend/uptrend is continuing. Exiting at that point preserves capital.
+
+8. Profit Targets & Trade Management
+8.1 Initial Targets
+Target LevelR-MultipleActionTarget 12x RiskTake partial profits or move stop to break-evenTarget 23x RiskTake remaining or trail stop tightlyExtended Target4x-5x+Only if trend clearly continuing; very rare
+8.2 Management Rules
+• Move stop to break-even once 2x-2.5x risk profit is reached
+• Scale out partially (e.g. half position) at first target
+• Trail the stop on remaining position below recent swing lows (for longs)
+• If the trade's uptrend/downtrend line breaks, tighten stop aggressively
+• Do NOT go to break-even too early - let the trade breathe
+8.3 Trade Management Philosophy
+The trader explicitly avoids over-managing trades. The most common mistake is exiting too early out of fear. The goal is to follow a pre-defined management plan and only act on specific chart signals, not emotional impulses.
+Mental stop rule: if price makes a significant pullback and the uptrend structure breaks, the trader exits even without a stop-limit order being triggered.
+
+9. Market Selection Logic
+On any given day, the trader selects the market showing superior characteristics:
+
+CriteriaES (S&P 500)NQ (NASDAQ)Best forBroader market stability, cleaner levelsHigher volatility, larger movesTrade ifES shows stronger relative strengthNQ shows larger price swingsSkip ifToo slow / not reaching key zonesContract sizing becomes awkward
+Comparative analysis: The trader compares the same time period on both charts. Whichever is showing more defined structure (cleaner Head & Shoulders, bigger candles, stronger trend break) is chosen.
+
+10. Fair Value Gap (FVG) Usage
+Fair Value Gaps are areas of market imbalance created by large, fast moves. They appear when a candle's body skips a price range entirely, leaving an 'unfilled' area on the chart. Key rules:
+• FVGs are used as reversal targets, NOT as continuation signals
+• Multiple stacked FVG indicators = stronger reversal signal (market is more overextended)
+• Must pair FVG signals with a clear key support/resistance level - never trade FVGs in the middle of a range
+• A single FVG with no key level support is a low-quality setup - skip it
+The trader sizes up (larger risk) when FVGs align with a timing window AND a key level AND show H&S structure. All three together = highest-conviction trade.
+
+11. When NOT to Trade
+The strategy has strict discipline around avoiding low-quality setups:
+• No flush into a key zone - skip
+• Flush happens outside of timing windows - skip or wait for next window
+• Market is choppy, slow-grinding, with no clear momentum - skip
+• No trend line break or structural shift visible - skip
+• Market has already made 2 large moves earlier in the session - be cautious, consider stopping
+• Price is in the middle of a range with no clean key levels nearby - skip
+• Trade not meeting the 4-factor checklist - skip, no exceptions
+
+Not taking a trade every day is acceptable and expected. The strategy targets high-probability setups, not trade frequency. Waiting preserves capital and mental clarity.
+
+12. Psychology & Discipline Notes
+The following behavioral rules are an explicit part of the strategy:
+• Visualize the setup before market open - review past winning trades for pattern reinforcement
+• Do not react emotionally - only act when the 4-factor checklist is confirmed
+• Avoid FOMO entries - if the entry moment passes, wait for the next setup
+• Do not think about dollar amounts while in a trade - focus on chart signals
+• If the market is not acting as expected, stop for the day - do not force trades
+• Accept losses as part of the process when entries followed the rules
+
+13. Glossary of Terms
+
+TermDefinitionORROpening Range Reversal - the core strategy typeESE-mini S&P 500 futures contractNQE-mini NASDAQ-100 futures contractFVGFair Value Gap - price imbalance area from fast, large movesH&SHead and Shoulders - reversal pattern: extreme, pullback, failed re-testR-MultipleRisk multiple - profit expressed as a ratio to initial risk (2R = 2x risk)FlushA fast, aggressive directional price moveSwing High/LowMost recent local price peak or troughTrend BreakWhen price violates the current trend line or stops making trend-direction extremesBreak-even StopMoving stop loss to the entry price to eliminate risk on a tradeTrail StopContinuously adjusting stop loss to follow price in trade direction
+14. Decision Flowchart Summary
+The following summarizes the go/no-go decision process:
+1. Pre-market: Mark key support/resistance zones, gaps, FVG areas, and timing lines on chart.
+2. Market open (7:30): Observe price action. Do NOT enter. Watch direction and momentum.
+3. At 7:45 or 8:00: Is price at a key level? Is there a strong flush? Are FVGs firing?
+4. If YES: Is the current trend breaking? Is a H&S or double bottom/top forming?
+5. If YES: Wait for confirmation candle breaking prior swing high/low.
+6. Enter with stop-market order. Set stop loss. Calculate contract size via risk tool.
+7. Manage trade: move to break-even at 2R, scale out at 2R-3R, trail stop on remainder.
+8. Exit fully when: limit target hit, trend breaks, or trailing stop triggered.
+9. Evaluate: Did entry follow the rules? Log the trade regardless of outcome.
+
+- End of Document -
+Opening Range Reversal Strategy  |  Page  of 
+

@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORR Signal Platform</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: monospace; background: #0a0a0a; color: #e0e0e0; font-size: 14px; }
+
+  /* ── Top bar ── */
+  #topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px;
+    background: #111; border-bottom: 1px solid #282828;
+    flex-wrap: wrap;
+  }
+  #topbar .title { font-weight: bold; font-size: 15px; color: #f0b429; margin-right: 8px; }
+
+  button {
+    padding: 6px 14px; border: 1px solid #444; background: #1a1a1a;
+    color: #ccc; cursor: pointer; font-family: monospace; font-size: 13px;
+    border-radius: 3px;
+  }
+  button:hover { background: #252525; color: #fff; }
+  button.active { background: #f0b429; color: #000; border-color: #f0b429; font-weight: bold; }
+  button.sym { font-size: 12px; border-color: #3a6ea5; }
+  button.sym.active { background:#3a6ea5; color:#fff; border-color:#3a6ea5; }
+  button.mode-btn { font-size: 13px; }
+
+  .sep { color: #444; padding: 0 4px; }
+
+  #conn-status { margin-left: auto; font-size: 12px; }
+  #conn-status.ok   { color: #22c55e; }
+  #conn-status.err  { color: #ef4444; }
+
+  /* ── Main layout ── */
+  #layout { display: flex; gap: 0; height: calc(100vh - 48px); }
+
+  /* ── Left panel ── */
+  #left {
+    width: 340px; min-width: 300px;
+    border-right: 1px solid #282828;
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+
+  /* ── Right panel ── */
+  #right { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Section headers ── */
+  .section-hdr {
+    background: #111; border-bottom: 1px solid #282828;
+    padding: 6px 12px; font-size: 12px; color: #888;
+    text-transform: uppercase; letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+
+  /* ── NY Clock / Countdown ── */
+  #clock-panel {
+    padding: 12px; border-bottom: 1px solid #282828; flex-shrink: 0;
+  }
+  #clock-panel .row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+  #clock-panel .lbl { color: #666; }
+  #clock-panel .val { color: #e0e0e0; font-weight: bold; }
+  #ny-time.in-window { color: #22c55e; }
+
+  #countdown-bar {
+    margin-top: 8px; height: 4px; background: #222; border-radius: 2px; overflow: hidden;
+  }
+  #countdown-fill { height: 100%; background: #f0b429; width: 0%; transition: width 1s linear; }
+
+  #window-msg {
+    margin-top: 6px; font-size: 12px; color: #888;
+  }
+  #window-msg.active { color: #22c55e; font-weight: bold; }
+
+  /* ── Current Signal Box ── */
+  #signal-box {
+    padding: 12px; border-bottom: 1px solid #282828; flex-shrink: 0;
+  }
+  #signal-box .sig-hdr { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  #sig-strength {
+    font-size: 18px; font-weight: bold; padding: 4px 12px;
+    border-radius: 3px; letter-spacing: 1px;
+  }
+  #sig-strength.ENTER   { background: #0d3320; color: #22c55e; border: 1px solid #22c55e; }
+  #sig-strength.CAUTION { background: #3a2900; color: #f0b429; border: 1px solid #f0b429; }
+  #sig-strength.NO_TRADE { background: #1a1a1a; color: #666;    border: 1px solid #333; }
+  #sig-strength.WAITING { background: #1a1a1a; color: #555;     border: 1px solid #333; }
+
+  #sig-prob { font-size: 22px; font-weight: bold; color: #f0b429; }
+
+  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .sig-cell { background: #151515; border: 1px solid #282828; padding: 6px 8px; border-radius: 2px; }
+  .sig-cell .lbl { font-size: 11px; color: #555; text-transform: uppercase; }
+  .sig-cell .val { font-size: 14px; font-weight: bold; margin-top: 2px; }
+  .val.long  { color: #22c55e; }
+  .val.short { color: #ef4444; }
+  .val.sl    { color: #ef4444; }
+  .val.tp    { color: #f0b429; }
+
+  /* ── Factors ── */
+  #factors-panel { padding: 10px 12px; border-bottom: 1px solid #282828; flex-shrink: 0; }
+  .factor-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
+  .factor-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .factor-dot.ok   { background: #22c55e; }
+  .factor-dot.fail { background: #444; }
+  .factor-name { color: #aaa; flex: 1; }
+  .factor-detail { color: #555; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+
+  /* ── Stats row ── */
+  #stats-bar {
+    padding: 8px 12px; background: #0d0d0d; border-top: 1px solid #282828;
+    display: flex; gap: 20px; flex-shrink: 0; font-size: 12px; flex-wrap: wrap;
+  }
+  .stat-item .lbl { color: #555; }
+  .stat-item .val { font-weight: bold; color: #e0e0e0; margin-left: 5px; }
+  .stat-item .val.pos { color: #22c55e; }
+  .stat-item .val.neg { color: #ef4444; }
+
+  /* ── Signal history table ── */
+  #history-wrap { flex: 1; overflow-y: auto; min-height: 250px; }
+  #history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  #history-table th {
+    text-align: left; padding: 6px 10px; background: #111;
+    border-bottom: 1px solid #282828; color: #666; position: sticky; top: 0;
+    font-weight: normal; text-transform: uppercase; font-size: 11px;
+  }
+  #history-table td { padding: 5px 10px; border-bottom: 1px solid #181818; }
+  #history-table tr:hover td { background: #131313; }
+
+  .badge {
+    display: inline-block; padding: 1px 6px; border-radius: 2px;
+    font-size: 11px; font-weight: bold;
+  }
+  .badge.TP1, .badge.TP2 { background: #0d3320; color: #22c55e; }
+  .badge.SL               { background: #3a0d0d; color: #ef4444; }
+  .badge.OPEN             { background: #1a1500; color: #f0b429; }
+  .badge.ENTER            { background: #0d3320; color: #22c55e; }
+  .badge.CAUTION          { background: #3a2900; color: #f0b429; }
+
+  /* ── Right panel content ── */
+  #right-inner { flex: 1; padding: 14px; overflow-y: auto; }
+
+  .info-block {
+    background: #111; border: 1px solid #282828; border-radius: 3px;
+    padding: 12px; margin-bottom: 12px;
+  }
+  .info-block h3 { font-size: 13px; color: #888; margin-bottom: 8px;
+                   text-transform: uppercase; letter-spacing: 1px; }
+  .info-block p  { color: #aaa; line-height: 1.7; font-size: 13px; }
+  .info-block code { color: #f0b429; }
+
+  #backtest-output {
+    background: #050505; border: 1px solid #282828; border-radius: 3px;
+    padding: 12px; white-space: pre; overflow-x: auto; font-size: 12px;
+    color: #aaa; min-height: 200px; max-height: 500px; overflow-y: auto;
+  }
+  #run-backtest-btn {
+    background: #f0b429; color: #000; border: none; padding: 8px 20px;
+    font-family: monospace; font-weight: bold; cursor: pointer; border-radius: 3px;
+    font-size: 13px; margin-bottom: 10px;
+  }
+  #run-backtest-btn:hover { background: #d4a000; }
+  #run-backtest-btn:disabled { background: #555; color: #333; cursor: not-allowed; }
+
+  select {
+    background: #1a1a1a; border: 1px solid #444; color: #e0e0e0;
+    padding: 5px 8px; font-family: monospace; font-size: 13px;
+    border-radius: 3px; cursor: pointer;
+  }
+
+  /* ── Overlay ── */
+  #weekend-overlay {
+    background: rgba(30, 25, 0, 0.95); border: 1px solid #f0b429;
+    border-radius: 4px; padding: 15px; margin-bottom: 15px;
+    display: none; position: relative;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  }
+  .close-btn:hover { color: #fff; background: transparent; }
+
+  /* ── Backtest Table ── */
+  .bt-table-container { 
+    max-height: 500px; overflow-y: auto; margin-top: 15px; 
+    border: 1px solid #222; border-radius: 4px; 
+  }
+  .bt-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+  .bt-table th { position: sticky; top: 0; background: #1a1a1a; color: #888; padding: 10px; border-bottom: 2px solid #222; }
+  .bt-table td { padding: 8px 10px; border-bottom: 1px solid #1a1a1a; }
+  .bt-row-win { background: rgba(0, 50, 0, 0.2); }
+  .bt-row-loss { background: rgba(50, 0, 0, 0.2); }
+  .bt-row-timeout { background: rgba(30, 30, 30, 0.2); }
+  .bt-tag { padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+  .tag-win { background: #27ae60; color: #fff; }
+  .tag-loss { background: #e74c3c; color: #fff; }
+  .tag-strength { border: 1px solid #f0b429; color: #f0b429; }
+</style>
+</head>
+<body>
+
+<!-- ── TOP BAR ── -->
+<div id="topbar">
+  <span class="title">⚡ ORR</span>
+  <span class="sep">|</span>
+
+  <!-- Symbol selector (ES / MES / NQ) -->
+  <span style="color:#666;font-size:12px">SYM:</span>
+  <button class="sym active" id="sym-ES"  onclick="setSymbol('ES')">ES</button>
+  <button class="sym"        id="sym-MES" onclick="setSymbol('MES')">MES</button>
+  <button class="sym"        id="sym-NQ"  onclick="setSymbol('NQ')">NQ</button>
+  <span class="sep">|</span>
+
+  <!-- Mode -->
+  <button class="mode-btn active" id="btn-live"     onclick="setMode('live')">LIVE</button>
+  <button class="mode-btn"        id="btn-backtest" onclick="setMode('backtest')">BACKTEST</button>
+  <span class="sep">|</span>
+
+  <!-- Timeframe — 1m/5m only -->
+  <span style="color:#666;font-size:12px">TF:</span>
+  <button class="tf active" id="tf-1m"  onclick="setTF('1m')">1m</button>
+  <button class="tf"        id="tf-5m"  onclick="setTF('5m')">5m</button>
+
+  <span id="conn-status" class="err" style="margin-left:auto">● CONNECTING</span>
+</div>
+
+<!-- ── MAIN LAYOUT ── -->
+<div id="layout">
+
+  <!-- ────── LEFT PANEL ────── -->
+  <div id="left">
+
+    <!-- NY/IST Clocks + Countdown -->
+    <div class="section-hdr">SESSION STATUS (DYNAMIC DST)</div>
+    <div id="clock-panel">
+      <div class="row">
+        <span class="lbl">New York (ET)</span>
+        <span class="val" id="ny-time">--:--:--</span>
+      </div>
+      <div class="row">
+        <span class="lbl">India (IST)</span>
+        <span class="val" id="ist-time" style="color:#f0b429">--:--:--</span>
+      </div>
+      <div class="row" style="margin-top:10px; border-top: 1px solid #333; padding-top:10px;">
+        <span class="lbl">Next Prediction</span>
+        <span class="val" id="next-window-ist" style="font-weight:bold">--:--</span>
+      </div>
+      <div class="row">
+        <span class="lbl">Countdown</span>
+        <span class="val" id="countdown" title="Market closed on Sat/Sun">--:--</span>
+      </div>
+      <div id="countdown-bar"><div id="countdown-fill"></div></div>
+      <div id="window-msg" style="color:#f0b429; font-weight:bold; font-size:11px; text-transform:uppercase">Waiting...</div>
+    </div>
+
+    <!-- Current Signal -->
+    <div class="section-hdr">CURRENT SIGNAL</div>
+    <div id="signal-box">
+      <div class="sig-hdr">
+        <span id="sig-strength" class="WAITING">WAITING</span>
+        <span id="sig-prob">--</span>
+      </div>
+      <div id="sig-dir" style="font-size:12px;color:#666;margin-bottom:6px">Direction: --</div>
+      <div class="sig-grid">
+        <div class="sig-cell"><div class="lbl">Entry</div><div class="val" id="s-entry">--</div></div>
+        <div class="sig-cell"><div class="lbl">Stop Loss</div><div class="val sl" id="s-sl">--</div></div>
+        <div class="sig-cell"><div class="lbl">TP1 (2R)</div><div class="val tp" id="s-tp1">--</div></div>
+        <div class="sig-cell"><div class="lbl">TP2 (3R)</div><div class="val tp" id="s-tp2">--</div></div>
+      </div>
+      <div id="outcome-box" style="display:none;margin-top:8px;padding:6px 10px;border-radius:3px;font-weight:bold;font-size:13px;text-align:center;"></div>
+    </div>
+
+    <!-- Factors -->
+    <div class="section-hdr">4-FACTOR CHECK</div>
+      <div class="factor-row"><span class="factor-dot fail" id="f1-dot"></span><span class="factor-name">Strong Flush into Key Zone</span><span class="factor-detail" id="f1-det">--</span></div>
+      <div class="factor-row"><span class="factor-dot fail" id="f2-dot"></span><span class="factor-name">Reversal Timing Alignment</span><span class="factor-detail" id="f2-det">--</span></div>
+      <div class="factor-row"><span class="factor-dot fail" id="f3-dot"></span><span class="factor-name">Trend Structure Pattern</span><span class="factor-detail" id="f3-det">--</span></div>
+      <div class="factor-row"><span class="factor-dot fail" id="f4-dot"></span><span class="factor-name">Momentum Confirmation</span><span class="factor-detail" id="f4-det">--</span></div>
+
+    <!-- Stats -->
+    <div id="stats-bar">
+      <span class="stat-item"><span class="lbl">Signals:</span><span class="val" id="st-total">0</span></span>
+      <span class="stat-item"><span class="lbl">Win%:</span><span class="val pos" id="st-wr">--%</span></span>
+      <span class="stat-item"><span class="lbl">TP1:</span><span class="val pos" id="st-tp1">0</span></span>
+      <span class="stat-item"><span class="lbl">TP2:</span><span class="val pos" id="st-tp2">0</span></span>
+      <span class="stat-item"><span class="lbl">SL:</span><span class="val neg" id="st-sl">0</span></span>
+    </div>
+
+    <!-- Signal History -->
+    <div class="section-hdr">SIGNAL HISTORY
+  <span style="float:right;display:flex;gap:4px;margin-top:-1px">
+    <button class="hf-btn active" data-f="ALL"  onclick="setHistoryFilter('ALL')"  style="padding:1px 7px;font-size:11px">ALL</button>
+    <button class="hf-btn"        data-f="1m"   onclick="setHistoryFilter('1m')"   style="padding:1px 7px;font-size:11px">1m</button>
+    <button class="hf-btn"        data-f="5m"   onclick="setHistoryFilter('5m')"   style="padding:1px 7px;font-size:11px">5m</button>
+  </span>
+</div>
+    <div id="history-wrap" style="flex: 1; overflow-y: auto; overflow-x: auto;">
+      <table id="history-table" style="min-width: 500px;">
+        <thead>
+          <tr>
+            <th>Time (IST)</th>
+            <th>Sym</th>
+            <th>TF</th>
+            <th>Dir</th>
+            <th>Signal</th>
+            <th>Entry Zone</th>
+            <th>SL</th>
+            <th>Outcome</th>
+          </tr>
+        </thead>
+        <tbody id="history-body">
+          <tr><td colspan="8" style="color:#444;text-align:center;padding:20px">No signals yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="disclaimer">⚠ Not financial advice. For research only.</div>
+  </div>
+
+  <!-- ────── RIGHT PANEL ────── -->
+  <div id="right">
+    <div class="section-hdr" id="right-hdr">LIVE MODE — XAUUSD</div>
+    <div id="right-inner">
+
+      <!-- LIVE view (default) -->
+      <div id="view-live">
+        <div id="weekend-overlay">
+          <button class="close-btn" onclick="this.parentElement.style.display='none'; window._overlayDismissed=true;">✕</button>
+          <h2>Market Closed</h2>
+          <p>Global Markets are closed for the weekend. The Live System has automatically paused sweeps to conserve resources.</p>
+          <p>Please switch to the <b>BACKTEST</b> tab above to run historical simulations!</p>
+        </div>
+        <details class="info-block" open>
+          <summary>How It Works (ORR)</summary>
+          <p>
+            The engine analyses <b>ES, MES, NQ</b> every <code>30s (1m)</code> / <code>60s (5m)</code>.<br><br>
+            When the 4-factor ORR checklist is satisfied, a signal fires automatically.<br>
+            ✅ <b>4/4 factors</b> → <code>85%</code> probability (ENTER)<br>
+            🟡 <b>3/4 factors</b> → <code>65%</code> probability (CAUTION)<br>
+            ❌ <b>&lt;3 factors</b> → No trade<br><br>
+            NY window times <b>for India (IST)</b>:<br>
+            &nbsp;&nbsp;Summer (EDT): <code>19:13–19:17</code> and <code>19:28–19:32</code><br>
+            &nbsp;&nbsp;Winter (EST): <code>20:13–20:17</code> and <code>20:28–20:32</code><br><br>
+            After a signal, the system checks <b>every 30s</b> whether SL or TP has been hit.
+          </p>
+        </details>
+        <details class="info-block">
+          <summary>Market Data Source</summary>
+          <p>
+            Currently using <code>Yahoo Finance</code> — ~15 min delayed.<br>
+            To switch to real-time data, edit <code>backend/.env</code>:<br>
+            &nbsp;&nbsp;<code>DATA_SOURCE=METATRADER5</code> (MT5 terminal must be open)<br>
+            &nbsp;&nbsp;<code>DATA_SOURCE=OANDA</code> (requires API key)
+          </p>
+        </details>
+        <details class="info-block" id="last-analysis-box" style="display:none">
+          <summary>Last Analysis (Raw Output)</summary>
+          <pre id="last-analysis-json" style="color:#888;font-size:11px;white-space:pre-wrap;word-break:break-all"></pre>
+        </details>
+        </div>
+      </div>
+
+      <!-- BACKTEST view -->
+      <div id="view-backtest" style="display:none">
+        <div class="info-block">
+          <h3>Backtest Settings</h3>
+          <p>
+            Runs strategy on historical XAUUSD data. No look-ahead bias.<br>
+            Factor 2 (timing) is checked against each bar's actual timestamp.
+          </p>
+          <br>
+          <label>Timeframe: <select id="bt-tf">
+            <option value="1m">1m</option>
+            <option value="5m" selected>5m</option>
+          </select></label>
+          &nbsp;&nbsp;
+          <label>Start: <input type="date" id="bt-date" value="2024-01-01"></label>
+          &nbsp;&nbsp;
+          <label>End: <input type="date" id="bt-end-date"></label>
+          &nbsp;&nbsp;
+          <label>Symbol: <select id="bt-symbol">
+            <option value="ES"  selected>ES — E-mini S&amp;P 500</option>
+            <option value="MES">MES — Micro E-mini S&amp;P 500</option>
+            <option value="NQ">NQ — NASDAQ Futures</option>
+          </select></label>
+          &nbsp;&nbsp;
+          <label>Strictness: <select id="bt-minsig">
+            <option value="ENTER" selected>Perfect Setup (4/4 Rules)</option>
+            <option value="CAUTION">Loose Setup (3/4+ Rules)</option>
+          </select></label>
+          <br><br>
+          <button id="run-backtest-btn" onclick="runBacktest()">▶ RUN BACKTEST</button>
+        <div class="info-block" style="margin-top:20px; border-top: 1px solid #222; padding-top:20px;">
+          <h3 id="bt-results-title">Backtest Results</h3>
+          <div id="bt-summary-box" style="margin-bottom:15px; display:none"></div>
+          <div id="bt-table-box" class="bt-table-container" style="display:none">
+            <table class="bt-table">
+              <thead>
+                <tr>
+                  <th>Date (IST)</th>
+                  <th>Setup</th>
+                  <th>Dir</th>
+                  <th>Entry Zone</th>
+                  <th>SL / TP</th>
+                  <th>Outcome</th>
+                  <th>Profit</th>
+                </tr>
+              </thead>
+              <tbody id="bt-table-body"></tbody>
+            </table>
+          </div>
+          <pre id="backtest-output" style="color:#aaa;font-size:12px;">Backtest output will appear here...</pre>
+        </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let ws             = null;
+let currentMode    = 'live';
+let currentSymbol  = 'ES';     // active symbol
+let currentTF      = '1m';     // active timeframe (1m default — spec primary)
+let historyFilter  = 'ALL';    // signal list TF filter
+let signalHistory  = [];
+let stats          = { total: 0, wins: 0, losses: 0, tp1: 0, tp2: 0, sl: 0, sumR: 0 };
+
+// ── Symbol / Mode / TF ────────────────────────────────────────────
+function setSymbol(sym) {
+  currentSymbol = sym;
+  ['ES','MES','NQ'].forEach(s =>
+    document.getElementById('sym-'+s).classList.toggle('active', s === sym));
+  updateRightHeader();
+  fetchAndShowSignal(currentSymbol, currentTF);
+}
+
+function setMode(m) {
+  currentMode = m;
+  document.getElementById('btn-live').classList.toggle('active', m === 'live');
+  document.getElementById('btn-backtest').classList.toggle('active', m === 'backtest');
+  document.getElementById('view-live').style.display     = m === 'live'     ? '' : 'none';
+  document.getElementById('view-backtest').style.display = m === 'backtest' ? '' : 'none';
+  updateRightHeader();
+}
+
+function setTF(tf) {
+  currentTF = tf;
+  document.querySelectorAll('.tf').forEach(b => b.classList.remove('active'));
+  document.getElementById('tf-'+tf).classList.add('active');
+  updateRightHeader();
+  fetchAndShowSignal(currentSymbol, currentTF);
+}
+
+function updateRightHeader() {
+  const hdr = document.getElementById('right-hdr');
+  if (hdr) hdr.textContent =
+    (currentMode==='live'?'LIVE':'BACKTEST') + ' — ' + currentSymbol + ' — ' + currentTF;
+}
+
+// ── NY Clock ──────────────────────────────────────────────────────
+// Windows in ET: 09:43-09:47 and 09:58-10:02
+const WINDOWS_ET_MINS = [
+  [9*60+43, 9*60+47],
+  [9*60+58, 10*60+2]
+];
+
+// ── Update Clocks (Dynamic DST handling) ────────────────────────
+function updateClock() {
+  const now = new Date();
+  
+  // New York (ET)
+  const nyStr = now.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour12: false });
+  document.getElementById('ny-time').innerText = nyStr;
+
+  // India (IST)
+  const istStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
+  document.getElementById('ist-time').innerText = istStr;
+
+  // NY Session Logic (Source of Truth)
+  const etNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const etH = etNow.getHours();
+  const etM = etNow.getMinutes();
+  const etTotal = etH * 60 + etM;
+  const wday = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' }).format(now);
+
+  const winMsg = document.getElementById('window-msg');
+  const nextVal = document.getElementById('next-window-ist');
+  const cdVal = document.getElementById('countdown');
+  const progress = document.getElementById('countdown-fill');
+
+  if (wday === 'Sat' || wday === 'Sun') {
+    winMsg.innerText = "Market Closed (Weekend)";
+    nextVal.innerText = "Mon Open";
+    cdVal.innerText = "--";
+    progress.style.width = '0%';
+    document.getElementById('weekend-overlay').style.display = 'block';
+    return;
+  }
+  document.getElementById('weekend-overlay').style.display = 'none';
+
+  // Windows in ET: 9:45 (W1), 10:00 (W2 - strongest), 10:30 (Extended)
+  const windows = [ 
+    { time: 585, label: "W1 - 09:45 ET" }, 
+    { time: 600, label: "W2 - 10:00 ET (STRONGEST)" }, 
+    { time: 630, label: "EXT - 10:30 ET" } 
+  ];
+  const currentWindow = windows.find(w => etTotal >= (w.time-2) && etTotal <= (w.time+2));
+  
+  if (currentWindow) {
+    winMsg.innerText = `🟢 ACTIVE ${currentWindow.label}...`;
+    cdVal.innerText = "NOW";
+    progress.style.width = '100%';
+    progress.style.background = '#f0b429';
+  } else {
+    let next = windows.find(w => etTotal < w.time);
+    if (!next) {
+      nextVal.innerText = "Tom. Open";
+      cdVal.innerText = "--";
+      winMsg.innerText = "Session Finished";
+    } else {
+      const diff = next.time - etTotal;
+      // Convert next window ET to IST for display
+      const targetET = new Date(etNow);
+      targetET.setHours(Math.floor(next.time/60), next.time%60, 0);
+      const istTimeStr = targetET.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute:'2-digit', hour12: false });
+      
+      nextVal.innerText = istTimeStr + " IST";
+      cdVal.innerText = diff + "m left";
+      winMsg.innerText = `Preparing for ${next.label}...`;
+      progress.style.width = (Math.max(0, 60-diff)/60 * 100) + '%';
+      progress.style.background = '#333';
+    }
+  }
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── WebSocket ─────────────────────────────────────────────────────
+let pingInterval = null;
+
+function connectWS() {
+  if (ws) {
+    ws.onclose = null;
+    ws.onerror = null;
+    ws.close();
+  }
+  ws = new WebSocket('ws://' + window.location.hostname + ':8000/ws/signals');
+
+  ws.onopen = () => {
+    document.getElementById('conn-status').textContent = '● LIVE';
+    document.getElementById('conn-status').className   = 'ok';
+    if (pingInterval) clearInterval(pingInterval);
+    pingInterval = setInterval(() => ws && ws.readyState === 1 && ws.send('ping'), 20000);
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'signal') handleSignal(msg.data);
+      if (msg.type === 'outcome') handleOutcome(msg.data);
+    } catch(_) {}
+  };
+
+  ws.onclose = () => {
+    document.getElementById('conn-status').textContent = '● DISCONNECTED';
+    document.getElementById('conn-status').className   = 'err';
+    if (pingInterval) clearInterval(pingInterval);
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+// ── Signal handler ────────────────────────────────────────────────
+function handleSignal(d) {
+  if (d.signal_strength === 'ENTER') { addToHistory(d); updateStats(d); }
+  const symMatch = !d.symbol || d.symbol.toUpperCase() === currentSymbol;
+  if (!symMatch || d.timeframe !== currentTF) return;
+  const el = document.getElementById('sig-strength');
+  const prob = Math.round((d.final_probability||0)*100);
+  el.textContent = d.signal_strength === 'NO_TRADE' ? 'NO TRADE' : d.signal_strength;
+  el.className   = d.signal_strength;
+  document.getElementById('sig-prob').textContent = d.signal_strength==='NO_TRADE' ? '' : prob+'%';
+  document.getElementById('sig-dir').textContent =
+    (d.direction && d.direction!=='none')
+      ? 'Dir: '+d.direction.toUpperCase()+' | ATR: '+(d.atr||'--')
+      : 'Direction: --';
+  document.getElementById('s-entry').innerHTML = d.entry_range
+    ? '<span style="color:#00ff88">'+d.entry_range.low+' – '+d.entry_range.high+'</span>'
+    : (d.entry_price ? d.entry_price.toFixed(2) : '--');
+  document.getElementById('s-sl').textContent  = d.stop_loss ? d.stop_loss.toFixed(2) : '--';
+  document.getElementById('s-tp1').textContent = d.tp1       ? d.tp1.toFixed(2)       : '--';
+  document.getElementById('s-tp2').textContent = d.tp2       ? d.tp2.toFixed(2)       : '--';
+  document.getElementById('outcome-box').style.display = 'none';
+  (d.factors||[]).forEach((f,i) => {
+    const id = ['f1','f2','f3','f4'][i]; if(!id) return;
+    document.getElementById(id+'-dot').className = 'factor-dot '+(f.satisfied?'ok':'fail');
+    const det = document.getElementById(id+'-det');
+    det.textContent = (f.detail||'--').replace('✓ ',''); det.title = f.detail||'';
+  });
+  document.getElementById('last-analysis-box').style.display = '';
+  document.getElementById('last-analysis-json').textContent =
+    JSON.stringify({signal_strength:d.signal_strength,factors_hit:d.factors_hit,
+      final_probability:d.final_probability,direction:d.direction,
+      symbol:d.symbol,timeframe:d.timeframe,notes:d.notes},null,2);
+}
+
+// ── Outcome handler ───────────────────────────────────────────────
+function handleOutcome(d) {
+  const outcome = d.outcome;
+  const ob = document.getElementById('outcome-box');
+  ob.style.display = '';
+  if (outcome === 'SL') {
+    ob.style.background = '#3a0d0d';
+    ob.style.color = '#ef4444';
+    ob.style.border = '1px solid #ef4444';
+    ob.textContent = `❌ STOP LOSS HIT @ ${d.exit_price?.toFixed(2) || '--'}`;
+  } else if (outcome === 'TP2') {
+    ob.style.background = '#0d2b0d';
+    ob.style.color = '#22c55e';
+    ob.style.border = '1px solid #22c55e';
+    ob.textContent = `✅ TP2 HIT @ ${d.exit_price?.toFixed(2) || '--'} (+3R)`;
+  } else if (outcome === 'TP1') {
+    ob.style.background = '#2b2b0d';
+    ob.style.color = '#f0b429';
+    ob.style.border = '1px solid #f0b429';
+    ob.textContent = `✅ TP1 HIT @ ${d.exit_price?.toFixed(2) || '--'} (+2R)`;
+  }
+
+  // Update history row
+  updateHistoryOutcome(d);
+  // Update stats based on outcome
+  if (outcome === 'SL')  { stats.losses++; stats.sumR -= 1; }
+  if (outcome === 'TP1') { stats.wins++;   stats.sumR += 2; }
+  if (outcome === 'TP2') { stats.wins++;   stats.sumR += 3; }
+  renderStats();
+}
+
+// ── History table ─────────────────────────────────────────────────
+function addToHistory(d) {
+  if (d.signal_strength !== 'ENTER') return;
+  if (signalHistory.find(r => r.id === d._db_id && d._db_id)) return;
+  let timeStr = '--';
+  if (d.timestamp) {
+    try { timeStr = new Date(d.timestamp).toLocaleTimeString('en-IN',
+      {timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false})+' IST';
+    } catch(e) {}
+  }
+  signalHistory.unshift({
+    id: d._db_id || Date.now(),
+    timeStr, sym: (d.symbol||'ES').toUpperCase(), tf: d.timeframe||'1m',
+    dir: d.direction||'--', sig: d.signal_strength,
+    prob: Math.round((d.final_probability||0)*100),
+    outcome:'OPEN', entry:d.entry_price,
+    entry_range:d.entry_range, sl:d.stop_loss, tp1:d.tp1, tp2:d.tp2,
+  });
+  if (signalHistory.length > 100) signalHistory.pop();
+  renderHistory();
+}
+
+function updateHistoryOutcome(d) {
+  const row = signalHistory.find(r => r.id === d._db_id);
+  if (row) { row.outcome = d.outcome; renderHistory(); }
+}
+
+function setHistoryFilter(f) {
+  historyFilter = f;
+  document.querySelectorAll('.hf-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.f === f));
+  renderHistory();
+}
+
+function renderHistory() {
+  const tbody = document.getElementById('history-body');
+  let rows = signalHistory;
+  if (historyFilter !== 'ALL') rows = rows.filter(r => r.tf === historyFilter);
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="color:#444;text-align:center;padding:20px">No signals yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td style="white-space:nowrap;color:#888">${r.timeStr}</td>
+      <td style="color:#f0b429;font-weight:bold">${r.sym}</td>
+      <td style="color:#aaa">${r.tf}</td>
+      <td style="color:${r.dir==='long'?'#22c55e':'#ef4444'}">${r.dir}</td>
+      <td><span class="badge ${r.sig}">${r.sig}</span> <span style="color:#888">${r.prob}%</span></td>
+      <td style="color:#00ff88">${r.entry_range?(r.entry_range.low+'-'+r.entry_range.high):(r.entry?r.entry.toFixed(2):'--')}</td>
+      <td style="color:#ef4444">${r.sl?r.sl.toFixed(2):'--'}</td>
+      <td><span class="badge ${r.outcome}">${r.outcome}</span></td>
+    </tr>`).join('');
+}
+
+// ── Stats ─────────────────────────────────────────────────────────
+function updateStats(d) {
+  stats.total++;
+  // New signal starts OPEN — wins/losses updated on outcome
+  renderStats();
+}
+
+function renderStats() {
+  document.getElementById('st-total').textContent = stats.total;
+  const closed = stats.wins + stats.losses;
+  const wr = closed > 0 ? Math.round(stats.wins / closed * 100) : '--';
+  document.getElementById('st-wr').textContent  = closed > 0 ? wr + '%' : '--%';
+  document.getElementById('st-tp1').textContent = stats.tp1;
+  document.getElementById('st-tp2').textContent = stats.tp2;
+  document.getElementById('st-sl').textContent  = stats.losses;
+}
+
+// ── Fetch latest signal for selected TF ───────────────────────────
+async function fetchAndShowSignal(sym, tf) {
+  try {
+    const r = await fetch(`${API}/api/signal?symbol=${sym}&timeframe=${tf}`);
+    if (r.ok) handleSignal(await r.json());
+  } catch(_) {}
+}
+
+// ── Load history from DB ──────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const r = await fetch(`${API}/api/signals/history?limit=30`);
+    if (!r.ok) { console.error("History fetch failed", r.status); return; }
+    const data = await r.json();
+    data.forEach(d => {
+      let timeStr = '--';
+      if (d.timestamp) {
+        try {
+          timeStr = new Date(d.timestamp).toLocaleTimeString('en-IN',
+            { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }) + " IST";
+        } catch(e) { console.error("Bad date", d.timestamp); }
+      }
+      signalHistory.push({
+        id: d.id, timeStr, tf: d.timeframe,
+        dir: d.direction || '--',
+        sig: d.signal_strength || 'WAITING',
+        prob: Math.round((d.final_probability || 0) * 100),
+        entry: d.entry_price, sl: d.stop_loss, tp1: d.tp1, tp2: d.tp2,
+        outcome: d.outcome || 'OPEN',
+      });
+    });
+    renderHistory();
+  } catch(err) {
+    console.error("loadHistory error:", err);
+  }
+
+  try {
+    const r = await fetch(`${API}/api/stats`);
+    if (!r.ok) return;
+    const s = await r.json();
+    stats.total   = s.signals_total || s.total_trades || 0;
+    stats.wins    = (s.signals_tp1 || 0) + (s.signals_tp2 || 0) || s.wins || 0;
+    stats.losses  = s.signals_sl || s.losses || 0;
+    stats.tp1     = s.signals_tp1 || s.tp1_hits || 0;
+    stats.tp2     = s.signals_tp2 || s.tp2_hits || 0;
+    stats.sumR    = (stats.wins * 2) - stats.losses;  // rough estimate
+    renderStats();
+  } catch(err) {
+    console.error("stats error:", err);
+  }
+}
+
+// ── Backtest ──────────────────────────────────────────────────────
+async function runBacktest() {
+  const btn = document.getElementById('run-backtest-btn');
+  const out = document.getElementById('backtest-output');
+  const tf  = document.getElementById('bt-tf').value;
+  const sym = document.getElementById('bt-symbol').value;
+  const min = document.getElementById('bt-minsig').value;
+  const date= document.getElementById('bt-date').value;
+  const end = document.getElementById('bt-end-date').value;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Running...';
+  out.textContent = `Running backtest: ${tf} | range: ${date || 'recent'} to ${end || 'now'} | strictness: ${min}\nThis may take 10-30 seconds...\n`;
+
+  let url = `${API}/api/backtest?timeframe=${tf}&min_signal=${min}&symbol=${sym}`;
+  if (date) url += `&start=${date}`;
+  if (end)  url += `&end=${end}`;
+  if (!date && !end) url += `&bars=400`;
+
+  try {
+    const r = await fetch(url, { method: 'POST' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    
+    if (data.error) {
+       throw new Error(data.error);
+    }
+
+    const s = data.summary;
+    const config = data.config;
+
+    // 1. Render Summary Header
+    const sumBox = document.getElementById('bt-summary-box');
+    sumBox.style.display = 'block';
+    sumBox.innerHTML = `
+      <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; background:#111; padding:15px; border-radius:4px; border:1px solid #222">
+        <div><small style="color:#666">Signals</small><div style="font-size:18px">${s.total_trades}</div></div>
+        <div><small style="color:#666">Win Rate</small><div style="font-size:18px; color:${s.win_rate > 0.5 ? '#27ae60':'#e74c3c'}">${(s.win_rate * 100).toFixed(1)}%</div></div>
+        <div><small style="color:#666">Brokerage</small><div style="font-size:18px; color:#e67e22">-$${s.total_brokerage}</div></div>
+        <div><small style="color:#666">P&L (Net)</small><div style="font-size:18px; color:${s.total_pnl_usd >= 0 ? '#27ae60':'#e74c3c'}">${s.total_pnl_usd >= 0 ? '$'+s.total_pnl_usd.toLocaleString() : '-$'+Math.abs(s.total_pnl_usd).toLocaleString()}</div></div>
+        <div><small style="color:#666">TP1 / TP2</small><div style="font-size:18px">${s.tp1_hits} / ${s.tp2_hits}</div></div>
+      </div>
+      <div style="font-size:11px; color:#444; margin-top:5px">
+        Config: ${config.symbol} ${config.timeframe} | Timing: ${config.skip_timing ? 'Skipped':'Strict'} | Warmup: 50
+      </div>
+    `;
+
+    // 2. Render Table Rows
+    const tbody = document.getElementById('bt-table-body');
+    tbody.innerHTML = '';
+    document.getElementById('bt-table-box').style.display = 'block';
+
+    (data.trades || []).forEach(t => {
+      const tr = document.createElement('tr');
+      const isWin = t.outcome.startsWith('TP');
+      const isLoss = t.outcome === 'SL';
+      tr.className = isWin ? 'bt-row-win' : (isLoss ? 'bt-row-loss' : 'bt-row-timeout');
+      
+      tr.innerHTML = `
+        <td>${t.bar_time}</td>
+        <td><span class="bt-tag tag-strength">${t.signal}</span> <small style="color:#555">F:${t.factors}/4</small></td>
+        <td style="color:${t.dir === 'long' ? '#27ae60':'#e74c3c'}">${t.dir.toUpperCase()}</td>
+        <td style="color:#00ff88">${t.entry_range ? (t.entry_range.low + ' - ' + t.entry_range.high) : t.entry}</td>
+        <td><small style="color:#666">${t.sl} / ${t.tp1}</small></td>
+        <td><span class="bt-tag ${isWin ? 'tag-win' : (isLoss ? 'tag-loss' : '')}">${t.outcome}</span></td>
+        <td style="color:${t.pnl_usd >= 0 ? '#27ae60':'#e74c3c'}">${t.pnl_usd >= 0 ? '+$'+t.pnl_usd : '-$'+Math.abs(t.pnl_usd)} <small style="color:#444">(-$${t.brokerage} fee)</small></td>
+      `;
+      tbody.appendChild(tr);
+
+      // Add diagnosis sub-row if failed
+      if (t.diagnosis) {
+        const diagRow = document.createElement('tr');
+        diagRow.innerHTML = `<td colspan="6" style="background:#0a0a0a; color:#888; border-top:none; font-size:11px; padding:4px 15px;">
+          <span style="color:#e67e22">DIAGNOSTIC:</span> ${t.diagnosis}
+        </td>`;
+        tbody.appendChild(diagRow);
+      }
+    });
+
+    if (!data.trades || data.trades.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:#444">No signals fired for this period. Try a looser setup or larger timeframe.</td></tr>';
+    }
+
+    out.style.display = 'none'; // hide old pre
+  } catch(e) {
+    console.error("bt error:", e);
+    out.style.display = 'block';
+    out.textContent = `ERROR: ${e.message}\n\nMake sure the backend is running:\n  cd backend\n  uvicorn main:app --reload`;
+    out.style.color = '#e74c3c';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶ RUN BACKTEST';
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+// Set default backtest date to 7 days ago
+const d = new Date();
+d.setDate(d.getDate() - 7);
+document.getElementById('bt-date').value = d.toISOString().split('T')[0];
+
+connectWS();
+loadHistory();
+fetchAndShowSignal(currentSymbol, currentTF);
+</script>
+</body>
+</html>
