@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ORR Signal Platform</title>
-<link rel="stylesheet" href="css/index.css">
+<link rel="stylesheet" href="/static/css/index.css">
 
 </head>
 <body>
@@ -38,7 +38,7 @@
 <div id="layout">
 
   <!-- ────── COL 1: HISTORY ────── -->
-  <div id="col-history">
+  <div id="col-history" class="scroll-invisible">
     <div id="left">
 
     <!-- NY/IST Clocks + Countdown -->
@@ -64,29 +64,6 @@
       <div id="window-msg" style="color:#f0b429; font-weight:bold; font-size:11px; text-transform:uppercase">Waiting...</div>
     </div>
 
-    <!-- Current Signal -->
-    <div class="section-hdr">CURRENT SIGNAL</div>
-    <div id="signal-box">
-      <div class="sig-hdr">
-        <span id="sig-strength" class="WAITING">WAITING</span>
-        <span id="sig-prob">--</span>
-      </div>
-      <div id="sig-dir" style="font-size:12px;color:#666;margin-bottom:6px">Direction: --</div>
-      <div class="sig-grid">
-        <div class="sig-cell"><div class="lbl">Entry</div><div class="val" id="s-entry">--</div></div>
-        <div class="sig-cell"><div class="lbl">Stop Loss</div><div class="val sl" id="s-sl">--</div></div>
-        <div class="sig-cell"><div class="lbl">TP1 (2R)</div><div class="val tp" id="s-tp1">--</div></div>
-        <div class="sig-cell"><div class="lbl">TP2 (3R)</div><div class="val tp" id="s-tp2">--</div></div>
-      </div>
-      <div id="outcome-box" style="display:none;margin-top:8px;padding:6px 10px;border-radius:3px;font-weight:bold;font-size:13px;text-align:center;"></div>
-    </div>
-
-    <!-- Factors -->
-    <div class="section-hdr">4-FACTOR CHECK</div>
-      <div class="factor-row"><span class="factor-dot fail" id="f1-dot"></span><span class="factor-name">Strong Flush into Key Zone</span><span class="factor-detail" id="f1-det">--</span></div>
-      <div class="factor-row"><span class="factor-dot fail" id="f2-dot"></span><span class="factor-name">Reversal Timing Alignment</span><span class="factor-detail" id="f2-det">--</span></div>
-      <div class="factor-row"><span class="factor-dot fail" id="f3-dot"></span><span class="factor-name">Trend Structure Pattern</span><span class="factor-detail" id="f3-det">--</span></div>
-      <div class="factor-row"><span class="factor-dot fail" id="f4-dot"></span><span class="factor-name">Momentum Confirmation</span><span class="factor-detail" id="f4-det">--</span></div>
 
     <!-- Stats -->
     <div id="stats-bar">
@@ -126,15 +103,15 @@
     </div>
 
     <div class="disclaimer">⚠ Not financial advice. For research only.</div>
-  </div>
+  </div><!-- /#left -->
+</div><!-- /#col-history -->
 
-    </div><!-- /#left -->
-  </div><!-- /#col-history -->
+  <div class="resizer" id="resizer1"></div>
 
   <!-- ────── COL 2: MIDDLE (Signals / Info) ────── -->
-  <div id="col-middle">
+  <div id="col-middle" class="scroll-invisible">
     <div id="right">
-    <div class="section-hdr" id="right-hdr">LIVE MODE — XAUUSD</div>
+    <div class="section-hdr" id="right-hdr">LIVE MODE — ES / MES / NQ</div>
     <div id="right-inner">
 
       <!-- LIVE view (default) -->
@@ -172,7 +149,6 @@
           <summary>Last Analysis (Raw Output)</summary>
           <pre id="last-analysis-json" style="color:#888;font-size:11px;white-space:pre-wrap;word-break:break-all"></pre>
         </details>
-        </div>
       </div>
 
       <!-- BACKTEST view -->
@@ -229,52 +205,54 @@
 
     </div>
   </div>
+    </div><!-- /#right-inner -->
+  </div><!-- /#right -->
+</div><!-- /#col-middle -->
 
-    </div><!-- /#right -->
-  </div><!-- /#col-middle -->
+  <div class="resizer" id="resizer2"></div>
 
   <!-- ────── COL 3: LIVE MATRIX ────── -->
-  <div id="col-live-grid">
+  <div id="col-live-grid" class="scroll-invisible">
     <div id="matrix-hdr">⚡ LIVE SIGNALS MATRIX — ES / MES / NQ</div>
     <div id="matrix-grid">
       <!-- 6 cards: ES×1m, ES×5m, MES×1m, MES×5m, NQ×1m, NQ×5m -->
       <div class="matrix-card selected" id="card-ES-1m"  onclick="selectCard('ES','1m')">
-        <div class="card-hdr"><span class="card-sym">ES</span><span class="card-tf">1m</span></div>
+        <div class="card-hdr"><span class="card-sym">E-mini S&P 500</span><span class="card-tf">1 Min</span></div>
         <div class="card-price" id="price-ES-1m">--</div>
         <span class="card-sig WAITING" id="sig-ES-1m">WAITING</span>
         <div class="card-factors" id="factors-ES-1m">F: 0/4</div>
         <div class="card-dir" id="dir-ES-1m"></div>
       </div>
       <div class="matrix-card" id="card-ES-5m"  onclick="selectCard('ES','5m')">
-        <div class="card-hdr"><span class="card-sym">ES</span><span class="card-tf">5m</span></div>
+        <div class="card-hdr"><span class="card-sym">E-mini S&P 500</span><span class="card-tf">5 Min</span></div>
         <div class="card-price" id="price-ES-5m">--</div>
         <span class="card-sig WAITING" id="sig-ES-5m">WAITING</span>
         <div class="card-factors" id="factors-ES-5m">F: 0/4</div>
         <div class="card-dir" id="dir-ES-5m"></div>
       </div>
-      <div class="matrix-card" id="card-MES-1m" onclick="selectCard('MES','1m')">
-        <div class="card-hdr"><span class="card-sym">MES</span><span class="card-tf">1m</span></div>
+      <div class="matrix-card" id="card-MES-1m"  onclick="selectCard('MES','1m')">
+        <div class="card-hdr"><span class="card-sym">Micro E-mini</span><span class="card-tf">1 Min</span></div>
         <div class="card-price" id="price-MES-1m">--</div>
         <span class="card-sig WAITING" id="sig-MES-1m">WAITING</span>
         <div class="card-factors" id="factors-MES-1m">F: 0/4</div>
         <div class="card-dir" id="dir-MES-1m"></div>
       </div>
-      <div class="matrix-card" id="card-MES-5m" onclick="selectCard('MES','5m')">
-        <div class="card-hdr"><span class="card-sym">MES</span><span class="card-tf">5m</span></div>
+      <div class="matrix-card" id="card-MES-5m"  onclick="selectCard('MES','5m')">
+        <div class="card-hdr"><span class="card-sym">Micro E-mini</span><span class="card-tf">5 Min</span></div>
         <div class="card-price" id="price-MES-5m">--</div>
         <span class="card-sig WAITING" id="sig-MES-5m">WAITING</span>
         <div class="card-factors" id="factors-MES-5m">F: 0/4</div>
         <div class="card-dir" id="dir-MES-5m"></div>
       </div>
       <div class="matrix-card" id="card-NQ-1m"  onclick="selectCard('NQ','1m')">
-        <div class="card-hdr"><span class="card-sym">NQ</span><span class="card-tf">1m</span></div>
+        <div class="card-hdr"><span class="card-sym">NASDAQ Futures</span><span class="card-tf">1 Min</span></div>
         <div class="card-price" id="price-NQ-1m">--</div>
         <span class="card-sig WAITING" id="sig-NQ-1m">WAITING</span>
         <div class="card-factors" id="factors-NQ-1m">F: 0/4</div>
         <div class="card-dir" id="dir-NQ-1m"></div>
       </div>
       <div class="matrix-card" id="card-NQ-5m"  onclick="selectCard('NQ','5m')">
-        <div class="card-hdr"><span class="card-sym">NQ</span><span class="card-tf">5m</span></div>
+        <div class="card-hdr"><span class="card-sym">NASDAQ Futures</span><span class="card-tf">5 Min</span></div>
         <div class="card-price" id="price-NQ-5m">--</div>
         <span class="card-sig WAITING" id="sig-NQ-5m">WAITING</span>
         <div class="card-factors" id="factors-NQ-5m">F: 0/4</div>
@@ -286,7 +264,7 @@
 
 </div><!-- /#layout -->
 
-<script src="js/app.js"></script>
+<script src="/static/js/app.js"></script>
 
 </body>
 </html>

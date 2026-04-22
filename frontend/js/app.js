@@ -205,56 +205,21 @@ function handleSignal(d) {
   if (d.signal_strength === 'ENTER') { addToHistory(d); updateStats(d); }
   const symMatch = !d.symbol || d.symbol.toUpperCase() === currentSymbol;
   if (!symMatch || d.timeframe !== currentTF) return;
-  const el = document.getElementById('sig-strength');
-  const prob = Math.round((d.final_probability||0)*100);
-  el.textContent = d.signal_strength === 'NO_TRADE' ? 'NO TRADE' : d.signal_strength;
-  el.className   = d.signal_strength;
-  document.getElementById('sig-prob').textContent = d.signal_strength==='NO_TRADE' ? '' : prob+'%';
-  document.getElementById('sig-dir').textContent =
-    (d.direction && d.direction!=='none')
-      ? 'Dir: '+d.direction.toUpperCase()+' | ATR: '+(d.atr||'--')
-      : 'Direction: --';
-  document.getElementById('s-entry').innerHTML = d.entry_range
-    ? '<span style="color:#00ff88">'+d.entry_range.low+' – '+d.entry_range.high+'</span>'
-    : (d.entry_price ? d.entry_price.toFixed(2) : '--');
-  document.getElementById('s-sl').textContent  = d.stop_loss ? d.stop_loss.toFixed(2) : '--';
-  document.getElementById('s-tp1').textContent = d.tp1       ? d.tp1.toFixed(2)       : '--';
-  document.getElementById('s-tp2').textContent = d.tp2       ? d.tp2.toFixed(2)       : '--';
-  document.getElementById('outcome-box').style.display = 'none';
-  (d.factors||[]).forEach((f,i) => {
-    const id = ['f1','f2','f3','f4'][i]; if(!id) return;
-    document.getElementById(id+'-dot').className = 'factor-dot '+(f.satisfied?'ok':'fail');
-    const det = document.getElementById(id+'-det');
-    det.textContent = (f.detail||'--').replace('✓ ',''); det.title = f.detail||'';
-  });
-  document.getElementById('last-analysis-box').style.display = '';
-  document.getElementById('last-analysis-json').textContent =
-    JSON.stringify({signal_strength:d.signal_strength,factors_hit:d.factors_hit,
-      final_probability:d.final_probability,direction:d.direction,
-      symbol:d.symbol,timeframe:d.timeframe,notes:d.notes},null,2);
+  
+  const analysisBox = document.getElementById('last-analysis-box');
+  if (analysisBox) analysisBox.style.display = '';
+  const jsonBox = document.getElementById('last-analysis-json');
+  if (jsonBox) {
+    jsonBox.textContent =
+      JSON.stringify({signal_strength:d.signal_strength,factors_hit:d.factors_hit,
+        final_probability:d.final_probability,direction:d.direction,
+        symbol:d.symbol,timeframe:d.timeframe,notes:d.notes},null,2);
+  }
 }
 
 // ── Outcome handler ───────────────────────────────────────────────
 function handleOutcome(d) {
   const outcome = d.outcome;
-  const ob = document.getElementById('outcome-box');
-  ob.style.display = '';
-  if (outcome === 'SL') {
-    ob.style.background = '#3a0d0d';
-    ob.style.color = '#ef4444';
-    ob.style.border = '1px solid #ef4444';
-    ob.textContent = `❌ STOP LOSS HIT @ ${d.exit_price?.toFixed(2) || '--'}`;
-  } else if (outcome === 'TP2') {
-    ob.style.background = '#0d2b0d';
-    ob.style.color = '#22c55e';
-    ob.style.border = '1px solid #22c55e';
-    ob.textContent = `✅ TP2 HIT @ ${d.exit_price?.toFixed(2) || '--'} (+3R)`;
-  } else if (outcome === 'TP1') {
-    ob.style.background = '#2b2b0d';
-    ob.style.color = '#f0b429';
-    ob.style.border = '1px solid #f0b429';
-    ob.textContent = `✅ TP1 HIT @ ${d.exit_price?.toFixed(2) || '--'} (+2R)`;
-  }
 
   // Update history row
   updateHistoryOutcome(d);
@@ -493,3 +458,38 @@ document.getElementById('bt-date').value = d.toISOString().split('T')[0];
 connectWS();
 loadHistory();
 fetchAndShowSignal(currentSymbol, currentTF);
+
+// ── Resizer ───────────────────────────────────────────────────────
+function initResizer(resizerId, leftColId) {
+  const resizer = document.getElementById(resizerId);
+  const leftCol = document.getElementById(leftColId);
+  let isResizing = false;
+
+  if (!resizer || !leftCol) return;
+
+  resizer.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    document.body.style.cursor = 'col-resize';
+    resizer.classList.add('active');
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+    const newWidth = e.clientX - leftCol.getBoundingClientRect().left;
+    if (newWidth > 200) {
+      leftCol.style.width = `${newWidth}px`;
+      leftCol.style.flex = 'none';
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isResizing) {
+      isResizing = false;
+      document.body.style.cursor = '';
+      resizer.classList.remove('active');
+    }
+  });
+}
+
+initResizer('resizer1', 'col-history');
+initResizer('resizer2', 'col-middle');

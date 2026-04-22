@@ -445,8 +445,25 @@ async def run_backtest_endpoint(
             "min_signal": min_signal, "skip_timing": skip_timing,
         }, "summary": {}, "trades": []}
 
+        # Make end date inclusive if provided
+        fetch_end = end
+        if start and end and start == end:
+            try:
+                from datetime import datetime, timedelta
+                d = datetime.strptime(end, "%Y-%m-%d")
+                fetch_end = (d + timedelta(days=1)).strftime("%Y-%m-%d")
+            except:
+                pass
+        elif end:
+            try:
+                from datetime import datetime, timedelta
+                d = datetime.strptime(end, "%Y-%m-%d")
+                fetch_end = (d + timedelta(days=1)).strftime("%Y-%m-%d")
+            except:
+                pass
+
         try:
-            df = fetch_ohlcv(timeframe, bars=bars, start=start, end=end, symbol=symbol)
+            df = fetch_ohlcv(timeframe, bars=bars, start=start, end=fetch_end, symbol=symbol)
             if df is None or df.empty or len(df) < 60:
                 return {"error": "Not enough data", "config": results["config"]}
 
@@ -505,6 +522,7 @@ async def run_backtest_endpoint(
                     "outcome":    result["outcome"],
                     "r_multiple": result["r_multiple"],
                     "pnl_usd":    round(raw_pnl - BROKERAGE, 2),
+                    "brokerage":  BROKERAGE,
                     "diagnosis":  diagnosis,
                     "bars_held":  result["bars_held"],
                 })
@@ -519,13 +537,14 @@ async def run_backtest_endpoint(
                     "win_rate":        round(wins/total, 4) if total else 0,
                     "avg_r":           round(float(tdf["r_multiple"].mean()), 3),
                     "total_pnl_usd":   round(float(tdf["pnl_usd"].sum()), 2),
+                    "total_brokerage": round(total * BROKERAGE, 2),
                     "tp2_hits":        len(tdf[tdf["outcome"]=="TP2"]),
                     "tp1_hits":        len(tdf[tdf["outcome"]=="TP1"]),
                     "sl_hits":         len(tdf[tdf["outcome"]=="SL"]),
                 }
             else:
                 results["summary"] = {"total_trades":0,"win_rate":0,"avg_r":0,
-                                       "total_pnl_usd":0,"tp2_hits":0,"tp1_hits":0,"sl_hits":0}
+                                       "total_pnl_usd":0,"total_brokerage":0,"tp2_hits":0,"tp1_hits":0,"sl_hits":0}
             results["trades"] = trades
         except Exception as e:
             results["error"] = str(e)
