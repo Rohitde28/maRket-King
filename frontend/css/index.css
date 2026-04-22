@@ -229,3 +229,128 @@
   .tag-win { background: #27ae60; color: #fff; }
   .tag-loss { background: #e74c3c; color: #fff; }
   .tag-strength { border: 1px solid #f0b429; color: #f0b429; }
+
+  /* ── Card Diagnostic Panel ── */
+  .matrix-card { position: relative; }
+  .card-diag {
+    margin-top: 8px;
+    border-top: 1px solid #222;
+    padding-top: 7px;
+    font-size: 10px;
+  }
+  .diag-reason {
+    color: #888;
+    font-size: 11px;
+    margin-bottom: 5px;
+    line-height: 1.4;
+  }
+  .diag-factor {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 2px 0;
+    line-height: 1.3;
+  }
+  .diag-factor.ok   { opacity: 0.6; }
+  .diag-factor.fail { opacity: 1; }
+  .diag-icon  { flex-shrink: 0; font-size: 10px; }
+  .diag-name  { color: #666; flex-shrink: 0; min-width: 28px; }
+  .diag-detail {
+    color: #444;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 130px;
+  }
+  .diag-factor.fail .diag-detail { color: #e67e22; }
+  .diag-factor.fail .diag-name   { color: #aaa; }
+  .diag-time {
+    color: #333;
+    font-size: 9px;
+    margin-top: 4px;
+  }
+
+  @keyframes diagScan {
+    0%, 100% { opacity: 0.4; }
+    50%       { opacity: 1; }
+  }
+  .diag-scanning {
+    color: #555;
+    font-size: 10px;
+    animation: diagScan 1.5s ease-in-out infinite;
+    margin-bottom: 4px;
+  }
+
+  /* ── Live Signal Panel ── */
+  #live-signal-panel {
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+
+  /* Badge row */
+  #live-sig-status {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding-bottom: 10px; border-bottom: 1px solid #1a1a1a;
+  }
+  .ls-badge {
+    font-size: 15px; font-weight: bold; letter-spacing: 1px;
+    padding: 5px 16px; border-radius: 3px;
+  }
+  .ls-badge.ENTER {
+    background: #0d3320; color: #22c55e; border: 1px solid #22c55e;
+    animation: enterPulse 1.5s ease-in-out infinite;
+  }
+  .ls-badge.CAUTION {
+    background: #2a1900; color: #f0b429; border: 1px solid #f0b429;
+  }
+  .ls-badge.NO_TRADE, .ls-badge.SCANNING, .ls-badge.WAITING {
+    background: #111; color: #444; border: 1px solid #2a2a2a;
+  }
+  @keyframes enterPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+    50%       { box-shadow: 0 0 12px 4px rgba(34,197,94,0.25); }
+  }
+  .ls-dir  { font-size: 16px; font-weight: bold; }
+  .ls-prob { font-size: 13px; color: #888; }
+  .ls-time { font-size: 11px; color: #444; margin-left: auto; }
+
+  /* Levels grid */
+  #live-levels-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  }
+  .ll-cell {
+    background: #111; border: 1px solid #222; border-radius: 3px;
+    padding: 8px 10px;
+  }
+  .ll-label { font-size: 10px; color: #444; text-transform: uppercase; margin-bottom: 3px; }
+  .ll-val   { font-size: 14px; font-weight: bold; font-family: monospace; }
+  .ll-val.green { color: #22c55e; }
+  .ll-val.red   { color: #ef4444; }
+  .ll-val.gold  { color: #f0b429; }
+
+  /* Factor checklist */
+  #live-factors-panel {
+    background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 3px; padding: 10px 12px;
+  }
+  .lf-title {
+    font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .lf-row {
+    display: flex; align-items: flex-start; gap: 6px;
+    padding: 4px 0; border-bottom: 1px solid #111; font-size: 12px;
+  }
+  .lf-row:last-child { border-bottom: none; }
+  .lf-row.ok   { opacity: 0.55; }
+  .lf-row.fail { opacity: 1; }
+  .lf-icon  { flex-shrink: 0; width: 18px; }
+  .lf-name  { color: #888; flex-shrink: 0; width: 190px; }
+  .lf-row.fail .lf-name { color: #ccc; }
+  .lf-detail { color: #555; font-size: 11px; }
+  .lf-row.fail .lf-detail { color: #e67e22; }
+
+  /* Notes panel */
+  #live-notes-panel {
+    background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 3px; padding: 10px 12px;
+  }
+

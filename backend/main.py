@@ -353,6 +353,63 @@ def get_all_signals():
     return latest_signals
 
 
+@app.get("/api/live-status")
+def get_live_status():
+    """
+    Rich live analysis status for all 6 symbol×timeframe combos.
+    Returns current signal state + factor breakdown (why no signal fired).
+    Used by the frontend to show the user what the engine is seeing right now.
+    """
+    status = {}
+    for sym in SYMBOLS:
+        status[sym] = {}
+        for tf in ACTIVE_TIMEFRAMES:
+            sig = latest_signals.get(sym, {}).get(tf, {})
+            factors = sig.get("factors", [])
+            notes   = sig.get("notes", [])
+            ss      = sig.get("signal_strength", "SCANNING")
+            fhit    = sig.get("factors_hit", 0)
+
+            # Build human-readable reason why no signal
+            reason = ""
+            if ss == "ENTER":
+                reason = f"✅ All 4 factors confirmed — {sig.get('direction','').upper()} signal active"
+            elif ss == "CAUTION":
+                reason = f"🟡 {fhit}/4 factors — monitoring closely"
+            elif factors:
+                failed = [f["name"] for f in factors if not f.get("satisfied", False)]
+                details = [f["detail"] for f in factors if not f.get("satisfied", False)]
+                if failed:
+                    reason = "❌ Blocking: " + " | ".join(
+                        f"{n}: {d}" for n, d in zip(failed, details)
+                    )
+                else:
+                    reason = "Analysing..."
+            else:
+                reason = "⏳ Waiting for first analysis cycle (≤30s)"
+
+            status[sym][tf] = {
+                "symbol":          sym,
+                "timeframe":       tf,
+                "signal_strength": ss,
+                "factors_hit":     fhit,
+                "direction":       sig.get("direction", "none"),
+                "entry_price":     sig.get("entry_price"),
+                "notes":           notes,
+                "reason":          reason,
+                "factors":         [
+                    {
+                        "name":      f.get("name", ""),
+                        "satisfied": f.get("satisfied", False),
+                        "detail":    f.get("detail", ""),
+                    }
+                    for f in factors
+                ],
+                "last_update":     sig.get("timestamp", None),
+            }
+    return status
+
+
 @app.get("/api/chart/{timeframe}")
 async def get_chart_data(timeframe: str, bars: int = 200, symbol: str = "ES"):
     if timeframe not in ["1m","5m","15m","30m","1h","4h","1d"]:
@@ -446,7 +503,31 @@ async def run_backtest_endpoint(
             "min_signal": min_signal, "skip_timing": skip_timing,
         }, "summary": {}, "trades": []}
 
+        # ── Yahoo Finance data-limit guard ────────────────────────
+        YF_MAX_DAYS = {"1m": 7, "5m": 60, "15m": 60, "30m": 60, "1h": 730, "1d": 1825}
+        max_days = YF_MAX_DAYS.get(timeframe, 60)
+        from datetime import datetime, timedelta, timezone as tz
+        today = datetime.now(tz.utc).date()
+        earliest_allowed = today - timedelta(days=max_days)
+        if start:
+            try:
+                start_dt = datetime.strptime(start, "%Y-%m-%d").date()
+                if start_dt < earliest_allowed:
+                    return {
+                        "error": (
+                            f"Yahoo Finance only provides {timeframe} data for the last {max_days} days. "
+                            f"Earliest allowed start for {timeframe}: {earliest_allowed.strftime('%Y-%m-%d')}. "
+                            f"You requested: {start}. "
+                            f"{'Switch to 5m for up to 60 days of history.' if timeframe == '1m' else ''}"
+                        ),
+                        "config": results["config"],
+                    }
+            except ValueError:
+                pass  # bad date format, let fetch_ohlcv handle it
+
+
         # Make end date inclusive if provided
+        fetch_start = start
         fetch_end = end
         if start and end:
             try:
@@ -454,7 +535,7 @@ async def run_backtest_endpoint(
                 d1 = datetime.strptime(start, "%Y-%m-%d")
                 d2 = datetime.strptime(end, "%Y-%m-%d")
                 if d1 > d2:
-                    start, end = end, start # Swap start and end
+                    fetch_start, fetch_end = end, start # Swap start and end
                     d1, d2 = d2, d1
                 fetch_end = (d2 + timedelta(days=1)).strftime("%Y-%m-%d")
             except Exception as e:
@@ -468,7 +549,7 @@ async def run_backtest_endpoint(
                 pass
 
         try:
-            df = fetch_ohlcv(timeframe, bars=bars, start=start, end=fetch_end, symbol=symbol)
+            df = fetch_ohlcv(timeframe, bars=bars, start=fetch_start, end=fetch_end, symbol=symbol)
             if df is None or df.empty or len(df) < 60:
                 return {"error": "Not enough data", "config": results["config"]}
 

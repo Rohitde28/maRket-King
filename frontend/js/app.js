@@ -1,4 +1,4 @@
-const API = 'http://localhost:8000';
+const API = `http://${window.location.hostname}:8000`;
 let ws             = null;
 let currentMode    = 'live';
 let currentSymbol  = 'ES';     // active symbol
@@ -201,21 +201,117 @@ function connectWS() {
 }
 
 // ── Signal handler ────────────────────────────────────────────────
-function handleSignal(d) {
-  if (d.signal_strength === 'ENTER') { addToHistory(d); updateStats(d); }
-  const symMatch = !d.symbol || d.symbol.toUpperCase() === currentSymbol;
-  if (!symMatch || d.timeframe !== currentTF) return;
-  
-  const analysisBox = document.getElementById('last-analysis-box');
-  if (analysisBox) analysisBox.style.display = '';
-  const jsonBox = document.getElementById('last-analysis-json');
-  if (jsonBox) {
-    jsonBox.textContent =
-      JSON.stringify({signal_strength:d.signal_strength,factors_hit:d.factors_hit,
-        final_probability:d.final_probability,direction:d.direction,
-        symbol:d.symbol,timeframe:d.timeframe,notes:d.notes},null,2);
+function renderLivePanel(d) {
+  const ss      = d.signal_strength || 'SCANNING';
+  const isEnter = ss === 'ENTER';
+  const isCaution = ss === 'CAUTION';
+  const isActive  = isEnter || isCaution;
+
+  // Badge
+  const badge = document.getElementById('live-sig-badge');
+  if (badge) {
+    badge.textContent = ss;
+    badge.className   = `ls-badge ${ss}`;
+  }
+
+  // Direction
+  const dirEl = document.getElementById('live-sig-dir');
+  if (dirEl) {
+    if (isActive && d.direction && d.direction !== 'none') {
+      dirEl.textContent  = d.direction === 'long' ? '▲ LONG' : '▼ SHORT';
+      dirEl.style.color  = d.direction === 'long' ? '#22c55e' : '#ef4444';
+    } else {
+      dirEl.textContent = '';
+    }
+  }
+
+  // Probability
+  const probEl = document.getElementById('live-sig-prob');
+  if (probEl) {
+    probEl.textContent = isActive ? Math.round((d.final_probability||0)*100) + '% confidence' : '';
+  }
+
+  // Timestamp
+  const timeEl = document.getElementById('live-sig-time');
+  if (timeEl) {
+    if (d.timestamp) {
+      const t = new Date(d.timestamp).toLocaleTimeString('en-IN',
+        {timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+      timeEl.textContent = `Last scan: ${t} IST`;
+    } else {
+      timeEl.textContent = 'Waiting for first analysis cycle...';
+    }
+  }
+
+  // Entry / SL / TP grid
+  const levelsGrid = document.getElementById('live-levels-grid');
+  if (levelsGrid) {
+    if (isActive && d.entry_price) {
+      levelsGrid.style.display = 'grid';
+      const entryEl = document.getElementById('live-entry');
+      const slEl    = document.getElementById('live-sl');
+      const tp1El   = document.getElementById('live-tp1');
+      const tp2El   = document.getElementById('live-tp2');
+      if (entryEl) entryEl.textContent = d.entry_range
+        ? `${d.entry_range.low} – ${d.entry_range.high}`
+        : d.entry_price.toFixed(2);
+      if (slEl)  slEl.textContent  = d.stop_loss ? d.stop_loss.toFixed(2)  : '--';
+      if (tp1El) tp1El.textContent = d.tp1        ? d.tp1.toFixed(2)        : '--';
+      if (tp2El) tp2El.textContent = d.tp2        ? d.tp2.toFixed(2)        : '--';
+    } else {
+      levelsGrid.style.display = 'none';
+    }
+  }
+
+  // Factor checklist
+  const factors = d.factors || [];
+  const countEl = document.getElementById('live-factors-count');
+  const listEl  = document.getElementById('live-factors-list');
+  if (countEl) {
+    const hit = factors.filter(f => f.satisfied).length;
+    countEl.textContent = factors.length ? `${hit}/${factors.length}` : 'waiting...';
+    countEl.style.color = hit === 4 ? '#22c55e' : hit >= 3 ? '#f0b429' : '#666';
+  }
+  if (listEl && factors.length) {
+    listEl.innerHTML = factors.map(f => `
+      <div class="lf-row ${f.satisfied ? 'ok' : 'fail'}">
+        <span class="lf-icon">${f.satisfied ? '✅' : '❌'}</span>
+        <span class="lf-name">${f.name}</span>
+        <span class="lf-detail">${f.detail || ''}</span>
+      </div>
+    `).join('');
+  } else if (listEl) {
+    listEl.innerHTML = '<div style="color:#333;font-size:11px;padding:8px 0">Analysis cycle starting...</div>';
+  }
+
+  // Notes
+  const notesPanel = document.getElementById('live-notes-panel');
+  const notesList  = document.getElementById('live-notes-list');
+  const notes = d.notes || [];
+  if (notesPanel && notesList) {
+    if (notes.length) {
+      notesPanel.style.display = '';
+      notesList.innerHTML = notes.map(n => `<div>${n}</div>`).join('');
+    } else {
+      notesPanel.style.display = 'none';
+    }
   }
 }
+
+function handleSignal(d) {
+  // Always add ENTER and CAUTION to history + stats
+  if (d.signal_strength === 'ENTER' || d.signal_strength === 'CAUTION') {
+    addToHistory(d);
+    if (d.signal_strength === 'ENTER') updateStats(d);
+  }
+
+  // Only update live panel for the currently selected symbol + TF
+  const symMatch = !d.symbol || d.symbol.toUpperCase() === currentSymbol;
+  if (!symMatch || d.timeframe !== currentTF) return;
+  renderLivePanel(d);
+}
+
+
 
 // ── Outcome handler ───────────────────────────────────────────────
 function handleOutcome(d) {
@@ -325,11 +421,14 @@ async function loadHistory() {
         } catch(e) { console.error("Bad date", d.timestamp); }
       }
       signalHistory.push({
-        id: d.id, timeStr, tf: d.timeframe,
+        id: d.id, timeStr,
+        sym: (d.symbol || 'ES').toUpperCase(),
+        tf: d.timeframe || '1m',
         dir: d.direction || '--',
         sig: d.signal_strength || 'WAITING',
         prob: Math.round((d.final_probability || 0) * 100),
         entry: d.entry_price, sl: d.stop_loss, tp1: d.tp1, tp2: d.tp2,
+        entry_range: null,
         outcome: d.outcome || 'OPEN',
       });
     });
@@ -451,15 +550,146 @@ async function runBacktest() {
   }
 }
 
+// ── Date Validation Helpers ───────────────────────────────────────
+// Yahoo Finance hard limits:
+//   1m  → max 7 days of history
+//   5m  → max 60 days of history
+const YF_MAX_DAYS = { '1m': 7, '5m': 60, '15m': 60 };
+
+function toInputDate(d) { return d.toISOString().split('T')[0]; }
+
+function clampStartToTf(tf) {
+  const maxDays  = YF_MAX_DAYS[tf] || 60;
+  const today    = new Date();
+  const minStart = new Date(today); minStart.setDate(today.getDate() - maxDays);
+  const startEl  = document.getElementById('bt-date');
+  const endEl    = document.getElementById('bt-end-date');
+  const warn     = document.getElementById('bt-data-warning');
+
+  // Set hard min/max on start input
+  startEl.min = toInputDate(minStart);
+  startEl.max = toInputDate(today);
+
+  // If current start is older than allowed, clamp it and show warning
+  if (startEl.value && startEl.value < toInputDate(minStart)) {
+    startEl.value = toInputDate(minStart);
+    if (warn) warn.style.display = tf === '1m' ? 'block' : 'none';
+  } else {
+    if (warn) warn.style.display = tf === '1m' ? 'block' : 'none';
+  }
+
+  // Re-enforce end date min = start date
+  syncEndDateMin();
+}
+
+function syncEndDateMin() {
+  const startEl = document.getElementById('bt-date');
+  const endEl   = document.getElementById('bt-end-date');
+  const today   = new Date();
+
+  if (startEl.value) {
+    endEl.min = startEl.value;           // end cannot be before start
+    endEl.max = toInputDate(today);      // end cannot be in the future
+
+    // If end is currently less than start, reset it to today
+    if (endEl.value && endEl.value < startEl.value) {
+      endEl.value = toInputDate(today);
+    }
+  }
+}
+
+function onBtTfChange() {
+  const tf = document.getElementById('bt-tf').value;
+  clampStartToTf(tf);
+}
+
+function onBtStartChange() {
+  syncEndDateMin();
+}
+
+function onBtEndChange() {
+  const startEl = document.getElementById('bt-date');
+  const endEl   = document.getElementById('bt-end-date');
+  // If user managed to set end < start, silently fix it
+  if (endEl.value && startEl.value && endEl.value < startEl.value) {
+    endEl.value = startEl.value;
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────────
-// Set default backtest date to 7 days ago
-const d = new Date();
-d.setDate(d.getDate() - 7);
-document.getElementById('bt-date').value = d.toISOString().split('T')[0];
+// Default: 5m selected, start = 7 days ago, end = today
+(function initDates() {
+  const today   = new Date();
+  const startDf = new Date(today); startDf.setDate(today.getDate() - 7);
+  document.getElementById('bt-date').value     = toInputDate(startDf);
+  document.getElementById('bt-end-date').value = toInputDate(today);
+  clampStartToTf('5m'); // 5m is default selected
+})();
 
 connectWS();
 loadHistory();
 fetchAndShowSignal(currentSymbol, currentTF);
+
+
+// ── Live Status Polling ───────────────────────────────────────────
+// Polls /api/live-status every 15s to update each matrix card with
+// a detailed factor-by-factor diagnostic so you always know what
+// the engine is seeing and why no signal has fired yet.
+async function pollLiveStatus() {
+  try {
+    const r = await fetch(`${API}/api/live-status`);
+    if (!r.ok) return;
+    const status = await r.json();
+
+    for (const sym in status) {
+      for (const tf in status[sym]) {
+        const d    = status[sym][tf];
+        const key  = sym + '-' + tf;
+        const card = document.getElementById('card-' + key);
+        if (!card) continue;
+
+        // Create or reuse diagnostic overlay inside card
+        let diag = card.querySelector('.card-diag');
+        if (!diag) {
+          diag = document.createElement('div');
+          diag.className = 'card-diag';
+          card.appendChild(diag);
+        }
+
+        const factors  = d.factors || [];
+        const lastUpd  = d.last_update
+          ? new Date(d.last_update).toLocaleTimeString('en-IN',
+              { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }) + ' IST'
+          : '--';
+
+        const factorHTML = factors.map(f => `
+          <div class="diag-factor ${f.satisfied ? 'ok' : 'fail'}">
+            <span class="diag-icon">${f.satisfied ? '✅' : '❌'}</span>
+            <span class="diag-name">${f.name}</span>
+            <span class="diag-detail">${f.detail}</span>
+          </div>
+        `).join('');
+
+        const scanPulse = !factors.length
+          ? `<div class="diag-scanning">⚙ Scanning market data...</div>`
+          : '';
+
+        diag.innerHTML = `
+          <div class="diag-reason">${d.reason || 'Analysing...'}</div>
+          ${scanPulse}
+          ${factorHTML}
+          ${lastUpd !== '--' ? `<div class="diag-time">Last scan: ${lastUpd}</div>` : ''}
+        `;
+      }
+    }
+  } catch(e) {
+    // backend not ready — silent fail
+  }
+}
+
+pollLiveStatus();
+setInterval(pollLiveStatus, 15000);
+
 
 // ── Resizer ───────────────────────────────────────────────────────
 function initResizer(resizerId, leftColId) {

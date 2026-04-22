@@ -117,57 +117,97 @@
       <!-- LIVE view (default) -->
       <div id="view-live">
         <div id="weekend-overlay">
-          <button class="close-btn" onclick="this.parentElement.style.display='none'; window._overlayDismissed=true;">✕</button>
+          <button class="close-btn" onclick="this.parentElement.style.display='none';">✕</button>
           <h2>Market Closed</h2>
-          <p>Global Markets are closed for the weekend. The Live System has automatically paused sweeps to conserve resources.</p>
-          <p>Please switch to the <b>BACKTEST</b> tab above to run historical simulations!</p>
+          <p>Global Markets are closed for the weekend. Switch to <b>BACKTEST</b> to run historical simulations.</p>
         </div>
-        <details class="info-block" open>
-          <summary>How It Works (ORR)</summary>
+
+        <!-- ── LIVE SIGNAL BOX ── -->
+        <div id="live-signal-panel">
+
+          <!-- Current signal status -->
+          <div id="live-sig-status">
+            <div id="live-sig-badge" class="ls-badge SCANNING">SCANNING</div>
+            <div id="live-sig-dir" class="ls-dir"></div>
+            <div id="live-sig-prob" class="ls-prob"></div>
+            <div id="live-sig-time" class="ls-time">Waiting for first analysis...</div>
+          </div>
+
+          <!-- Entry / SL / TP grid — shown only when signal active -->
+          <div id="live-levels-grid" style="display:none">
+            <div class="ll-cell">
+              <div class="ll-label">ENTRY ZONE</div>
+              <div class="ll-val green" id="live-entry">--</div>
+            </div>
+            <div class="ll-cell">
+              <div class="ll-label">STOP LOSS</div>
+              <div class="ll-val red" id="live-sl">--</div>
+            </div>
+            <div class="ll-cell">
+              <div class="ll-label">TP1 (2R)</div>
+              <div class="ll-val gold" id="live-tp1">--</div>
+            </div>
+            <div class="ll-cell">
+              <div class="ll-label">TP2 (3R)</div>
+              <div class="ll-val gold" id="live-tp2">--</div>
+            </div>
+          </div>
+
+          <!-- Factor checklist — always shown, helps debug -->
+          <div id="live-factors-panel">
+            <div class="lf-title">FACTOR CHECKLIST — <span id="live-factors-count">waiting...</span></div>
+            <div id="live-factors-list">
+              <!-- populated by JS -->
+            </div>
+          </div>
+
+          <!-- Reason / notes from engine -->
+          <div id="live-notes-panel" style="display:none">
+            <div class="lf-title">ENGINE NOTES</div>
+            <div id="live-notes-list" style="font-size:11px; color:#666; line-height:1.6;"></div>
+          </div>
+
+        </div><!-- /#live-signal-panel -->
+
+        <!-- Collapsible info -->
+        <details class="info-block" style="margin-top:10px">
+          <summary>How It Works (ORR Strategy)</summary>
           <p>
-            The engine analyses <b>ES, MES, NQ</b> every <code>30s (1m)</code> / <code>60s (5m)</code>.<br><br>
-            When the 4-factor ORR checklist is satisfied, a signal fires automatically.<br>
-            ✅ <b>4/4 factors</b> → <code>85%</code> probability (ENTER)<br>
-            🟡 <b>3/4 factors</b> → <code>65%</code> probability (CAUTION)<br>
-            ❌ <b>&lt;3 factors</b> → No trade<br><br>
-            NY window times <b>for India (IST)</b>:<br>
+            Engine scans <b>ES, MES, NQ</b> every <code>15s (1m)</code> / <code>60s (5m)</code>.<br><br>
+            <b>Signal levels:</b><br>
+            ✅ <b>4/4 factors</b> → <code>ENTER</code> — 90% probability — take the trade<br>
+            🟡 <b>3/4 factors</b> → <code>CAUTION</code> — 65% probability — monitor closely<br>
+            ❌ <b>&lt;3 factors</b> → No signal — engine keeps scanning<br><br>
+            <b>NY windows (IST):</b><br>
             &nbsp;&nbsp;Summer (EDT): <code>19:13–19:17</code> and <code>19:28–19:32</code><br>
-            &nbsp;&nbsp;Winter (EST): <code>20:13–20:17</code> and <code>20:28–20:32</code><br><br>
-            After a signal, the system checks <b>every 30s</b> whether SL or TP has been hit.
+            &nbsp;&nbsp;Winter (EST): <code>20:13–20:17</code> and <code>20:28–20:32</code>
           </p>
         </details>
-        <details class="info-block">
-          <summary>Market Data Source</summary>
-          <p>
-            Currently using <code>Yahoo Finance</code> — ~15 min delayed.<br>
-            To switch to real-time data, edit <code>backend/.env</code>:<br>
-            &nbsp;&nbsp;<code>DATA_SOURCE=METATRADER5</code> (MT5 terminal must be open)<br>
-            &nbsp;&nbsp;<code>DATA_SOURCE=OANDA</code> (requires API key)
-          </p>
-        </details>
-        <details class="info-block" id="last-analysis-box" style="display:none">
-          <summary>Last Analysis (Raw Output)</summary>
-          <pre id="last-analysis-json" style="color:#888;font-size:11px;white-space:pre-wrap;word-break:break-all"></pre>
-        </details>
-      </div>
+      </div><!-- /#view-live -->
+
+
 
       <!-- BACKTEST view -->
       <div id="view-backtest" style="display:none">
         <div class="info-block">
           <h3>Backtest Settings</h3>
           <p>
-            Runs strategy on historical XAUUSD data. No look-ahead bias.<br>
+            Runs strategy on historical ES/MES/NQ futures data. No look-ahead bias.<br>
             Factor 2 (timing) is checked against each bar's actual timestamp.
           </p>
+          <div id="bt-data-warning" style="display:none; margin:8px 0 4px; padding:6px 10px; background:#2a1500; border:1px solid #f0b429; border-radius:3px; font-size:12px; color:#f0b429;">
+            ⚠ <strong>1m data is limited to the last 7 days</strong> by Yahoo Finance.<br>
+            Start date has been auto-adjusted. Use <strong>5m</strong> for longer backtests (up to 60 days).
+          </div>
           <br>
-          <label>Timeframe: <select id="bt-tf">
-            <option value="1m">1m</option>
-            <option value="5m" selected>5m</option>
+          <label>Timeframe: <select id="bt-tf" onchange="onBtTfChange()">
+            <option value="1m">1m (last 7 days max)</option>
+            <option value="5m" selected>5m (up to 60 days)</option>
           </select></label>
           &nbsp;&nbsp;
-          <label>Start: <input type="date" id="bt-date" value="2024-01-01"></label>
+          <label>Start: <input type="date" id="bt-date" onchange="onBtStartChange()"></label>
           &nbsp;&nbsp;
-          <label>End: <input type="date" id="bt-end-date"></label>
+          <label>End: <input type="date" id="bt-end-date" onchange="onBtEndChange()"></label>
           &nbsp;&nbsp;
           <label>Symbol: <select id="bt-symbol">
             <option value="ES"  selected>ES — E-mini S&amp;P 500</option>
@@ -176,13 +216,13 @@
           </select></label>
           &nbsp;&nbsp;
           <label>Strictness: <select id="bt-minsig">
-            <option value="ENTER" selected>Perfect Setup (4/4 Rules)</option>
-            <option value="CAUTION">Loose Setup (3/4+ Rules)</option>
+            <option value="ENTER">Perfect Setup (4/4 Rules)</option>
+            <option value="CAUTION" selected>Loose Setup (3/4+ Rules)</option>
           </select></label>
           &nbsp;&nbsp;
           <label>Fee/Trade: $<input type="number" id="bt-brokerage" value="5" step="0.5" style="width: 60px; background: #222; color: #fff; border: 1px solid #444; border-radius: 3px; padding: 2px 5px;"></label>
           <br><br>
-          <button id="run-backtest-btn" onclick="runBacktest()">▶ RUN BACKTEST</button>
+          <button id="run-backtest-btn" onclick="runBacktest()">&#9654; RUN BACKTEST</button>
         <div class="info-block" style="margin-top:20px; border-top: 1px solid #222; padding-top:20px;">
           <h3 id="bt-results-title">Backtest Results</h3>
           <div id="bt-summary-box" style="margin-bottom:15px; display:none"></div>
